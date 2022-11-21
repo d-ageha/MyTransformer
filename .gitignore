@@ -1,3 +1,5 @@
 /venv
 /dataset
 /output
+/__pycache__
+/Model/__pycache__
