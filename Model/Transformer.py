@@ -1,7 +1,7 @@
 from math import cos, sin
 import torch
 import torch.nn as nn
-from .MultiHeadAttention import MultiheadAttention
+from MultiHeadAttention import MultiheadAttention
 
 
 class Transformer(nn.Module):
@@ -24,13 +24,13 @@ class Transformer(nn.Module):
                     for y in range(model_dim)] for x in range(max_seq_len)]
         self.register_buffer("pos_enc", torch.tensor(pos_enc))
 
-    def forward(self, x: torch.Tensor):
-        enc = x + self.pos_enc[:x.shape[1],
-                               :x.shape[2]].expand(x.shape[0], -1, -1)
+    def forward(self, x: torch.Tensor, y: torch.Tensor):
+        enc = x + (torch.Tensor)(self.pos_enc)[:x.shape[1],
+                                               :x.shape[2]].expand(x.shape[0], -1, -1)
         for encoder in self.encoders:
             enc = encoder.forward(enc)
-        dec = enc + self.pos_enc[:x.shape[1],
-                                 :enc.shape[2]].expand(x.shape[0], -1, -1)
+        dec = y + (torch.Tensor)(self.pos_enc)[:y.shape[1],
+                                               :y.shape[2]].expand(y.shape[0], -1, -1)
         for decoder in self.decoders:
             dec = decoder.forward(dec, enc)
         dec = self.linear(dec)
@@ -88,7 +88,7 @@ class DecoderLayer(nn.Module):
         h = self.maksed_att_layer(x, x, x)
         h = self.dropout(h)+x
         h = nn.functional.layer_norm(h, h.size())
-        h2 = self.maksed_att_layer(h, enc, enc)
+        h2 = self.att_layer(h, enc, enc)
         h2 = self.dropout(h2)+h
         h2 = nn.functional.layer_norm(h2, h2.size())
         h3 = self.ff_layer(h2)
@@ -97,16 +97,37 @@ class DecoderLayer(nn.Module):
 
 
 if __name__ == "__main__":
-    A = torch.tensor(
-        [[-1, 1, 0],
-         [1, 3, 1]])
+    from transformers import AutoTokenizer
+    en_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    ja_tokenizer = AutoTokenizer.from_pretrained(
+        "cl-tohoku/bert-base-japanese")
+    en_tokenizer.add_special_tokens({ "eos_token":"[EOS]"})
+    print(en_tokenizer.all_special_tokens)
+    print(ja_tokenizer.all_special_tokens)
+    en_embedding = torch.nn.Embedding(
+        len(en_tokenizer), 64, en_tokenizer.pad_token_id)
+    ja_embedding = torch.nn.Embedding(
+        len(ja_tokenizer), 64, ja_tokenizer.pad_token_id)
 
-    B = torch.tensor(
-        [[[0, 1, 0], [1, 1, 0]],
-         [[-1, 2, 1], [0, 0, 0]],
-         [[3, 2, 1], [-1, 2, 3]],
-         [[3, 2, 1], [-1, 2, 3]]])
+    en = "I want to do some stupid things in my life"
+    ja = "なにか馬鹿みたいなことでもしたいなぁ"
 
-    test = torch.rand(5, 20, 64)
-    test2 = torch.rand(5, 10, 64)
-    print(Transformer(6, 6, 8, 64, 30, 0.1).forward(test))
+    print(en_tokenizer(en), ja_tokenizer(ja))
+    en_tokens = torch.tensor(en_tokenizer(en)["input_ids"])
+    en_emb = en_embedding(en_tokens)
+    ja_tokens = torch.tensor(en_tokenizer(ja)["input_ids"])
+    ja_emb = ja_embedding(ja_tokens)
+    print(en_tokens, en_emb)
+    out = Transformer(6, 6, 8, 64, 30, 0.1).forward(
+        en_emb.expand(1, -1, -1), ja_emb.expand(1, -1, -1))
+
+    ja_out = torch.norm(
+        ja_embedding.weight.data.expand(out.shape[1], -1, -1).transpose(0, 1)-out, dim=1)
+    ja_token = torch.argmin(ja_out, dim=0)
+
+    ja_tes = torch.norm(
+        ja_embedding.weight.data.expand(ja_emb.shape[0], -1, -1).transpose(0, 1)-ja_emb, dim=1)
+    ja_teso = torch.argmin(ja_tes, dim=0)
+    print(ja_token.shape)
+    print(ja_tokenizer.decode(ja_token))
+    print(ja_tokenizer.decode(torch.argmin(torch.norm(ja_embedding.weight.data-ja_emb[2],dim=1))))
