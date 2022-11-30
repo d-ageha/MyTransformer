@@ -5,4 +5,5 @@
     "python.analysis.extraPaths": [
         "./Model"
     ],
+    "python.formatting.autopep8Args": ["--ignore","E402"] 
 }
