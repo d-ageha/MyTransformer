@@ -101,8 +101,6 @@ if __name__ == "__main__":
     en_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     ja_tokenizer = AutoTokenizer.from_pretrained(
         "cl-tohoku/bert-base-japanese")
-    en_tokenizer.add_special_tokens({"eos_token": "[EOS]"})
-    ja_tokenizer.add_special_tokens({"eos_token": "[EOS]"})
 
     en_embedding = torch.nn.Embedding(
         len(en_tokenizer), 64, en_tokenizer.pad_token_id)

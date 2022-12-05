@@ -61,17 +61,15 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
         for i, data in t:
             optim.zero_grad()
             en, ja = data["en"].to(device), data["ja"].to(device)
-            # print(train_dataset.ja_tokenizer.decode(ja[0]), train_dataset.ja_tokenizer.decode(
-            #    model.ja_decode(model.ja_embed(ja[0]))))
             out = model(en, ja)
-            loss = loss_fn(out, model.ja_embed(ja))
+            loss = loss_fn(out[:, :-1, :], model.ja_emb(ja)[:, 1:, :])
             train_loss += float(loss)
             loss.backward()
-            torch.no_grad()
-            print(train_dataset.ja_tokenizer.decode(model.ja_decode(out[0])))
             with torch.no_grad():
                 t.set_postfix_str("Epoch: {} loss={}".format(e, loss))
             if i % 100 == 0:
+                print(train_dataset.ja_tokenizer.decode(
+                    model.ja_decode(out[0])))
                 torch.save(model.state_dict(), "output/JESC_Transformer_Model")
 
         train_loss /= train_dataloader.__len__()
@@ -90,4 +88,4 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
 
 if __name__ == "__main__":
     print(torch.__version__)
-    model = train("dataset/train_p", "dataset/dev_p", 100, 10)
+    model = train("dataset/train_p", "dataset/dev_p", 256, 10, lr=10)
