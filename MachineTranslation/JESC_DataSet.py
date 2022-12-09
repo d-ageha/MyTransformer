@@ -16,10 +16,9 @@ class JESC_DataSet(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx: int):
-        en = torch.tensor(self.en_tokenizer(
-            self.data.iloc[idx][0], padding="max_length", max_length=self.max_length)["input_ids"])
+        en = self.en_tokenizer(
+            self.data.iloc[idx][0], padding="max_length", max_length=self.max_length)
 
-        ja = torch.tensor(self.ja_tokenizer(
-            self.data.iloc[idx][1], padding="max_length", max_length=self.max_length)["input_ids"])
-        return {"en": en,
-                "ja": ja}
+        ja = self.ja_tokenizer(
+            self.data.iloc[idx][1], padding="max_length", max_length=self.max_length)
+        return {"en": en, "ja": ja}

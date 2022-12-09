@@ -1,4 +1,3 @@
-
 import torch
 import math
 import torch.nn as nn
@@ -8,25 +7,16 @@ from typing import Optional
 class Attention(nn.Module):
     """Attention mechanism"""
 
-    def __init__(self, is_masked: bool = False, maxq_len: Optional[int] = None, maxk_len: Optional[int] = None) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        if is_masked:
-            if maxq_len is None or maxk_len is None:
-                raise Exception(
-                    "Attention: you must set maxq_len and maxk_len when is_masked=True")
-            mask = torch.ones(maxq_len, maxk_len)
-            mask = (mask*(-float("inf")))+mask
-            self.register_buffer("mask", mask)
-        else:
-            self.mask = None
 
-    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor):
+    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: Optional[torch.Tensor]):
+        # mask: i x j tensor
         scale = math.sqrt(query.size()[1])
-        h = torch.div(torch.einsum("bhik,bhjk->bhij", query, key),scale)
+        h = torch.div(torch.einsum("bhik,bhjk->bhij", query, key), scale)
+        if mask is not None:
+            h.masked_fill(mask, float(-math.inf))
         weight = nn.functional.softmax(h, dim=0)
-        if self.mask is not None:
-            weight = torch.einsum("bhiv,iv->bhiv", weight, self.mask)
-
         return torch.einsum("bhij,bhjv->bhiv", weight, value)
 
 
@@ -34,13 +24,10 @@ class MultiheadAttention(nn.Module):
     """Multihead Attention layer"""
 
     def __init__(self, head_num: int, q_dim: int, k_dim: int, v_dim: int,
-                 is_masked: bool = False, maxq_len: Optional[int] = None, maxk_len: Optional[int] = None) -> None:
+                 is_masked: bool = False) -> None:
         super().__init__()
-        self.kh_dim = max((int)(k_dim/head_num), 1)
-        self.vh_dim = max((int)(k_dim/head_num), 1)
-
-        if is_masked and (maxq_len is None or maxk_len is None):
-            raise Exception("set dimensions of possible inputs")
+        self.qh_dim = max((int)(k_dim / head_num), 1)
+        self.kh_dim = max((int)(k_dim / head_num), 1)
 
         self.head_num = head_num
         self.q_dim = q_dim
@@ -48,31 +35,49 @@ class MultiheadAttention(nn.Module):
         self.v_dim = v_dim
 
         self.q_w = nn.Parameter(torch.rand(head_num, q_dim, self.kh_dim,
-                              requires_grad=True))
+                                           requires_grad=True))
         self.k_w = nn.Parameter(torch.rand(head_num, k_dim, self.kh_dim,
-                              requires_grad=True))
-        self.v_w = nn.Parameter(torch.rand(head_num, v_dim, self.vh_dim,
-                              requires_grad=True))
-        self.o_w = nn.Parameter(torch.rand(head_num * self.vh_dim, q_dim,
-                              requires_grad=True))
-        self.att = Attention(is_masked, maxq_len, maxk_len)
+                                           requires_grad=True))
+        self.v_w = nn.Parameter(torch.rand(head_num, v_dim, self.kh_dim,
+                                           requires_grad=True))
+        self.o_w = nn.Parameter(torch.rand(head_num * self.kh_dim, q_dim,
+                                           requires_grad=True))
+        self.att = Attention()
+        if is_masked:
+            mask = torch.ones(q_dim, q_dim)
+            mask = torch.triu(mask, 1)
+            self.register_buffer("mask", mask)
+        else:
+            self.mask = None
 
-    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor):
+    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, pad_mask: Optional[torch.Tensor] = None):
         """ forward
-            query: i x q tensor
-            key: j x k tensor
-            value: j x v tensor
-            i = length of query
-            j = length of key/value
+            query: b x i x q tensor
+            key: b x j x k tensor
+            value: b x j x v tensor
+            pad_mask: b x i
+
+            i = length of query sequence
+            j = length of key/value sequence
         """
         """
-            s: kh_dim
-            t: vh_dim
+            s: q/head_num
+            t: k/head_num
         """
+
+        # if pad_mask is passed, I assume i = j  (self attention)
+        mask = self.mask
+        if pad_mask is not None:
+            if mask is not None:
+                mask = (mask == 1) | (pad_mask == 1)
+            else:
+                mask = pad_mask == 1
+
         weighted_q = torch.einsum("biq,hqs->bhis", query, self.q_w)
         weighted_k = torch.einsum("bjk,hks->bhjs", key, self.k_w)
         weighted_v = torch.einsum("bjv,hvt->bhjt", value, self.v_w)
 
-        heads = self.att.forward(weighted_q, weighted_k, weighted_v)
+        heads = self.att.forward(weighted_q, weighted_k, weighted_v, mask)
         # heads.shape: [batch_size, head_num, query[0].shape, vh_dim]
-        return torch.einsum("bit,to->bio", heads.view(heads.shape[0], -1, self.head_num*self.vh_dim), self.o_w)
+        heads = heads.view(heads.shape[0], -1, self.head_num * self.kh_dim)
+        return torch.einsum("bit,to->bio", heads, self.o_w)

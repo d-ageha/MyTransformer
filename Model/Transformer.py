@@ -1,4 +1,5 @@
 from math import cos, sin
+from typing import Optional
 import torch
 import torch.nn as nn
 from MultiHeadAttention import MultiheadAttention
@@ -24,17 +25,14 @@ class Transformer(nn.Module):
                     for y in range(model_dim)] for x in range(max_seq_len)]
         self.register_buffer("pos_enc", torch.tensor(pos_enc))
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor):
-        enc = x + (torch.Tensor)(self.pos_enc)[:x.shape[1],
-                                               :x.shape[2]].expand(x.shape[0], -1, -1)
+    def forward(self, x: torch.Tensor, y: torch.Tensor, x_pad_mask: Optional[torch.Tensor] = None, y_pad_mask: Optional[torch.Tensor] = None):
+        enc = x + self.pos_enc
         for encoder in self.encoders:
-            enc = encoder.forward(enc)
-        dec = y + (torch.Tensor)(self.pos_enc)[:y.shape[1],
-                                               :y.shape[2]].expand(y.shape[0], -1, -1)
+            enc = encoder.forward(enc, x_pad_mask)
+        dec = y + self.pos_enc
         for decoder in self.decoders:
-            dec = decoder.forward(dec, enc)
-        dec = self.linear(dec)
-        return torch.nn.functional.softmax(dec, 2)
+            dec = decoder.forward(dec, enc, y_pad_mask, x_pad_mask)
+        return self.linear(dec)
 
 
 class FeedForward(nn.Module):
@@ -61,15 +59,18 @@ class EncoderLayer(nn.Module):
         self.ff_layer = FeedForward(model_dim, model_dim * 4, model_dim)
         self.att_layer = MultiheadAttention(
             h_num, model_dim, model_dim, model_dim)
-        self.dropout = nn.Dropout(drop_rate)
+        self.dropout1 = nn.Dropout(drop_rate)
+        self.dropout2 = nn.Dropout(drop_rate)
+        self.lnorm1 = nn.LayerNorm(model_dim)
+        self.lnorm2 = nn.LayerNorm(model_dim)
 
-    def forward(self, x: torch.Tensor):
-        h = self.att_layer(x, x, x)
-        h = self.dropout(h) + x
-        h = nn.functional.layer_norm(h, h.size())
+    def forward(self, x: torch.Tensor, pad_mask: Optional[torch.Tensor] = None):
+        h = self.att_layer(x, x, x, pad_mask)
+        h = self.dropout1(h) + x
+        h = self.lnorm1(h)
         h2 = self.ff_layer(h)
-        h2 = self.dropout(h2) + h
-        return nn.functional.layer_norm(h2, h2.size())
+        h2 = self.dropout2(h2) + h
+        return self.lnorm2(h2)
 
 
 class DecoderLayer(nn.Module):
@@ -79,21 +80,26 @@ class DecoderLayer(nn.Module):
         super().__init__()
         self.ff_layer = FeedForward(model_dim, model_dim * 4, model_dim)
         self.maksed_att_layer = MultiheadAttention(
-            h_num, model_dim, model_dim, model_dim)
+            h_num, model_dim, model_dim, model_dim, True)
         self.att_layer = MultiheadAttention(
             h_num, model_dim, model_dim, model_dim)
-        self.dropout = nn.Dropout(drop_rate)
+        self.dropout1 = nn.Dropout(drop_rate)
+        self.dropout2 = nn.Dropout(drop_rate)
+        self.dropout3 = nn.Dropout(drop_rate)
+        self.lnorm1 = nn.LayerNorm(model_dim)
+        self.lnorm2 = nn.LayerNorm(model_dim)
+        self.lnorm3 = nn.LayerNorm(model_dim)
 
-    def forward(self, x, enc):
-        h = self.maksed_att_layer(x, x, x)
-        h = self.dropout(h) + x
-        h = nn.functional.layer_norm(h, h.size())
-        h2 = self.att_layer(h, enc, enc)
-        h2 = self.dropout(h2) + h
-        h2 = nn.functional.layer_norm(h2, h2.size())
+    def forward(self, x, enc, x_pad_mask: Optional[torch.Tensor] = None, enc_pad_mask: Optional[torch.Tensor] = None):
+        h = self.maksed_att_layer(x, x, x, x_pad_mask)
+        h = self.dropout1(h) + x
+        h = self.lnorm1(h)
+        h2 = self.att_layer(h, enc, enc, enc_pad_mask)
+        h2 = self.dropout2(h2) + h
+        h2 = self.lnorm1(h2)
         h3 = self.ff_layer(h2)
-        h3 = self.dropout(h3) + h2
-        return nn.functional.layer_norm(h3, h3.size())
+        h3 = self.dropout3(h3) + h2
+        return self.lnorm1(h3)
 
 
 if __name__ == "__main__":
@@ -109,7 +115,7 @@ if __name__ == "__main__":
 
     en = "I want to do some stupid things with my life"
     ja = "なにか馬鹿みたいなことでもしたいなぁ"
-
+    print(en_tokenizer(en, padding="max_length", max_length=20))
     en_tokenized = torch.tensor(en_tokenizer(en)["input_ids"])
     en_emb = en_embedding(en_tokenized)
     ja_tokenized = torch.tensor(ja_tokenizer(ja)["input_ids"])
