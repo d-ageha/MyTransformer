@@ -51,16 +51,16 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
                       len(train_dataset.ja_tokenizer))
     model.to(device)
     optim = torch.optim.Adam(model.parameters(), lr=lr)
+    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=0, label_smoothing=0.1)
     for e in range(epoch):
         model.train(True)
         train_loss = 0.0
         valid_loss = 0.0
         t = tqdm(enumerate(train_dataloader), total=len(train_dataloader))
         for i, data in t:
-            optim.zero_grad()
             en, ja = data["en"], data["ja"]
-            en_tokens = torch.tensor(en["input_ids"]).to(device)
-            ja_tokens = torch.tensor(ja["input_ids"]).to(device)
+            en_tokens = torch.tensor(en["input_ids"],dtype=torch.float).to(device)
+            ja_tokens = torch.tensor(ja["input_ids"],dtype=torch.float).to(device)
             en_masks, ja_masks = torch.tensor(
                 en["attention_mask"]).to(device), torch.tensor(ja["attention_mask"]).to(device)
 
@@ -70,9 +70,12 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
                 en_masks, ja_masks = en_masks.unsqueeze(
                     0), ja_masks.unsqueeze(0)
 
+
+            optim.zero_grad()
             out = model(en_tokens, ja_tokens, en_masks, ja_masks)
-            loss = F.cross_entropy(
-                out[:, :-1, :], model.ja_emb(ja_tokens)[:, 1:, :], label_smoothing=0.1)
+            out_tokens=torch.tensor(model.ja_decode(out),dtype=torch.float).to(device)            
+            print(out_tokens, ja_tokens)            
+            loss = loss_fn(out_tokens[:], ja_tokens[:,1:])
             train_loss += float(loss)
             loss.backward()
             optim.step()
@@ -102,4 +105,4 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
 
 if __name__ == "__main__":
     print(torch.__version__)
-    model = train("dataset/train_p", "dataset/dev_p", 100, 10, 1, lr=1)
+    model = train("dataset/train_p", "dataset/dev_p", 100, 10, 1, lr=0.001)
