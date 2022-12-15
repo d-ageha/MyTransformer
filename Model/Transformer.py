@@ -10,9 +10,9 @@ class Transformer(nn.Module):
     def __init__(self, dec_num: int, enc_num: int,
                  head_num: int, model_dim: int, max_seq_len: int, drop_rate: float) -> None:
         super().__init__()
-        self.decoders = [DecoderLayer(head_num, model_dim, drop_rate)
+        self.decoders = [DecoderLayer(head_num, max_seq_len, max_seq_len, model_dim, drop_rate)
                          for x in range(dec_num)]
-        self.encoders = [EncoderLayer(head_num, model_dim, drop_rate)
+        self.encoders = [EncoderLayer(head_num, max_seq_len, model_dim, drop_rate)
                          for x in range(enc_num)]
         self.linear = torch.nn.Linear(model_dim, model_dim)
 
@@ -32,7 +32,7 @@ class Transformer(nn.Module):
         dec = y + self.pos_enc
         for decoder in self.decoders:
             dec = decoder.forward(dec, enc, y_pad_mask, x_pad_mask)
-        return self.linear(dec)
+        return dec
 
 
 class FeedForward(nn.Module):
@@ -54,11 +54,11 @@ class FeedForward(nn.Module):
 class EncoderLayer(nn.Module):
     """ A single layer of Transformer's encoder part. """
 
-    def __init__(self, h_num: int, model_dim: int, drop_rate: float) -> None:
+    def __init__(self, h_num: int, max_in_length: int, model_dim: int, drop_rate: float) -> None:
         super().__init__()
         self.ff_layer = FeedForward(model_dim, model_dim * 4, model_dim)
         self.att_layer = MultiheadAttention(
-            h_num, model_dim, model_dim, model_dim)
+            h_num, max_in_length, max_in_length, model_dim, model_dim, model_dim)
         self.dropout1 = nn.Dropout(drop_rate)
         self.dropout2 = nn.Dropout(drop_rate)
         self.lnorm1 = nn.LayerNorm(model_dim)
@@ -76,13 +76,13 @@ class EncoderLayer(nn.Module):
 class DecoderLayer(nn.Module):
     """ A single layer of Transformer's decoder part. """
 
-    def __init__(self, h_num: int, model_dim: int, drop_rate: float) -> None:
+    def __init__(self, h_num: int, max_in_length: int, max_out_length: int, model_dim: int, drop_rate: float) -> None:
         super().__init__()
         self.ff_layer = FeedForward(model_dim, model_dim * 4, model_dim)
         self.maksed_att_layer = MultiheadAttention(
-            h_num, model_dim, model_dim, model_dim, True)
+            h_num, max_in_length, max_in_length, model_dim, model_dim, model_dim, True)
         self.att_layer = MultiheadAttention(
-            h_num, model_dim, model_dim, model_dim)
+            h_num, max_in_length, max_out_length, model_dim, model_dim, model_dim)
         self.dropout1 = nn.Dropout(drop_rate)
         self.dropout2 = nn.Dropout(drop_rate)
         self.dropout3 = nn.Dropout(drop_rate)
@@ -100,33 +100,3 @@ class DecoderLayer(nn.Module):
         h3 = self.ff_layer(h2)
         h3 = self.dropout3(h3) + h2
         return self.lnorm1(h3)
-
-
-if __name__ == "__main__":
-    from transformers import AutoTokenizer
-    en_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    ja_tokenizer = AutoTokenizer.from_pretrained(
-        "cl-tohoku/bert-base-japanese")
-
-    en_embedding = torch.nn.Embedding(
-        len(en_tokenizer), 64, en_tokenizer.pad_token_id)
-    ja_embedding = torch.nn.Embedding(
-        len(ja_tokenizer), 64, ja_tokenizer.pad_token_id)
-
-    en = "I want to do some stupid things with my life"
-    ja = "なにか馬鹿みたいなことでもしたいなぁ"
-    print(en_tokenizer(en, padding="max_length", max_length=20))
-    en_tokenized = torch.tensor(en_tokenizer(en)["input_ids"])
-    en_emb = en_embedding(en_tokenized)
-    ja_tokenized = torch.tensor(ja_tokenizer(ja)["input_ids"])
-    ja_emb = ja_embedding(ja_tokenized)
-
-    out = Transformer(6, 6, 8, 64, 30, 0.1).forward(
-        en_emb.expand(1, -1, -1), ja_emb.expand(1, -1, -1))
-
-    ja_tes = torch.norm(ja_embedding.weight.data.expand(
-        ja_emb.shape[0], -1, -1).transpose(0, 1) - out, dim=2)
-    ja_teso = torch.argmin(ja_tes, dim=0)
-
-    print(ja_tokenizer.decode(ja_tokenized),
-          "DON!", ja_tokenizer.decode(ja_teso))
