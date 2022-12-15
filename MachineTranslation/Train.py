@@ -13,6 +13,7 @@ class EtoJModel(torch.nn.Module):
     def __init__(self, model_dim: int, en_pad_idx: int, ja_pad_idx: int, max_seq_len: int, en_embs: int, ja_embs: int) -> None:
         super().__init__()
         self.transformer = Transformer(6, 6, 8, model_dim, max_seq_len, 0.1)
+        # self.transformer = torch.nn.Transformer(model_dim, 8)
         self.en_emb = torch.nn.Embedding(en_embs, model_dim, padding_idx=en_pad_idx)
         self.ja_emb = torch.nn.Embedding(ja_embs, model_dim, padding_idx=ja_pad_idx)
         self.linear = torch.nn.Linear(model_dim, ja_embs)
@@ -21,6 +22,8 @@ class EtoJModel(torch.nn.Module):
         x = self.en_emb(x)
         y = self.ja_emb(y)
         out = self.transformer(x, y, x_pad_mask, y_pad_mask)
+        # out = self.transformer(x, y, src_key_padding_mask=x_pad_mask.transpose(0, 1) ==
+        #                       1, tgt_key_padding_mask = y_pad_mask.transpose(0, 1) == 1)
         return self.linear(out)
 
     def en_embed(self, x):
@@ -37,7 +40,7 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     torch.cuda.empty_cache()
     print(device)
-    max_length = 60
+    max_length = 70
     train_dataset = JESC_DataSet(train, max_length)
     val_dataset = JESC_DataSet(val, max_length)
     train_dataloader = DataLoader(train_dataset, batch, True)
@@ -73,7 +76,6 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
             train_loss += float(loss)
             loss.backward()
             optim.step()
-
             with torch.no_grad():
                 t.set_postfix_str("Epoch: {} loss={}".format(e, loss))
             if i % 100 == 0:

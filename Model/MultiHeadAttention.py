@@ -17,8 +17,7 @@ class Attention(nn.Module):
         if mask is not None:
             # ...what?
             h = h.transpose(0, 1).masked_fill(mask, -float("Inf")).nan_to_num().transpose(0, 1)
-
-        weight = nn.functional.softmax(h, dim=0)
+        weight = nn.functional.softmax(h, dim=-1)
         return torch.einsum("bhij,bhjv->bhiv", weight, value)
 
 
@@ -28,8 +27,8 @@ class MultiheadAttention(nn.Module):
     def __init__(self, head_num: int, q_length: int, k_length: int, q_dim: int, k_dim: int, v_dim: int,
                  is_masked: bool = False) -> None:
         super().__init__()
-        self.qh_dim = max((int)(q_dim / head_num), 1)
-        self.kh_dim = max((int)(k_dim / head_num), 1)
+        self.qh_dim = q_dim // head_num
+        self.kh_dim = k_dim // head_num
 
         self.head_num = head_num
         self.q_length = q_length
@@ -38,18 +37,14 @@ class MultiheadAttention(nn.Module):
         self.k_dim = k_dim
         self.v_dim = v_dim
 
-        self.q_w = nn.Parameter(torch.rand(head_num, q_length, self.qh_dim,
-                                           requires_grad=True))
-        self.k_w = nn.Parameter(torch.rand(head_num, k_length, self.kh_dim,
-                                           requires_grad=True))
-        self.v_w = nn.Parameter(torch.rand(head_num, k_length, self.kh_dim,
-                                           requires_grad=True))
-        self.o_w = nn.Parameter(torch.rand(head_num * self.kh_dim, q_dim,
-                                           requires_grad=True))
+        self.q_linear = nn.Linear(q_dim, q_dim)
+        self.k_linear = nn.Linear(k_dim, k_dim)
+        self.v_linear = nn.Linear(v_dim, v_dim)
+        self.o_linear = nn.Linear(self.kh_dim * head_num, v_dim)
         self.att = Attention()
         if is_masked:
             mask = torch.ones(q_length, k_length)
-            mask = torch.triu(mask, 1)
+            mask = torch.tril(mask)
             self.register_buffer("mask", mask)
         else:
             self.mask = None
@@ -71,16 +66,17 @@ class MultiheadAttention(nn.Module):
         # if pad_mask is passed, I assume i = j  (self attention)
         mask = self.mask
         if pad_mask is not None:
-            pad_mask = pad_mask.repeat(1, self.k_length).view(pad_mask.shape[0], self.q_length, self.k_length)
             if mask is not None:
-                mask = mask.repeat(pad_mask.shape[0], 1).view(pad_mask.shape[0], self.q_length, self.k_length)
-                mask = (mask == 1) | (pad_mask == 1)
+                mask = mask * pad_mask
+                mask = mask == 0
             else:
-                mask = pad_mask == 1
-        weighted_q = torch.einsum("biq,his->bhis", query, self.q_w)
-        weighted_k = torch.einsum("bjk,hjt->bhjt", key, self.k_w)
-        weighted_v = torch.einsum("bjv,hjt->bhjt", value, self.v_w)
-        heads = self.att.forward(weighted_q, weighted_k, weighted_v, mask)
+                mask = pad_mask == 0
+                mask = mask.repeat(self.q_length, 1)
+
+        query = self.q_linear(query).view(query.shape[0], self.head_num, self.q_length, self.qh_dim)
+        key = self.k_linear(key).view(key.shape[0], self.head_num, self.k_length, self.kh_dim)
+        value = self.v_linear(value).view(value.shape[0], self.head_num, self.k_length, self.kh_dim)
+        heads = self.att.forward(query, key, value, mask)
         # heads.shape: [batch_size, head_num, query[0].shape, vh_dim]
         heads = heads.view(heads.shape[0], -1, self.head_num * self.kh_dim)
-        return torch.einsum("bit,to->bio", heads, self.o_w)
+        return self.o_linear(heads)
