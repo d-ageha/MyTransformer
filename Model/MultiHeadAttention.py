@@ -66,12 +66,13 @@ class MultiheadAttention(nn.Module):
         # if pad_mask is passed, I assume i = j  (self attention)
         mask = self.mask
         if pad_mask is not None:
+            pad_mask = pad_mask == 0
+            pad_mask = pad_mask.repeat(1, 1, self.q_length).view(-1, self.q_length, self.q_length)
             if mask is not None:
-                mask = mask * pad_mask
+                mask = pad_mask * mask
                 mask = mask == 0
             else:
-                mask = pad_mask == 0
-                mask = mask.repeat(self.q_length, 1)
+                mask = pad_mask
 
         query = self.q_linear(query).view(query.shape[0], self.head_num, self.q_length, self.qh_dim)
         key = self.k_linear(key).view(key.shape[0], self.head_num, self.k_length, self.kh_dim)
