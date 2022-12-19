@@ -17,6 +17,7 @@ class EtoJModel(torch.nn.Module):
         self.en_emb = torch.nn.Embedding(en_embs, model_dim, padding_idx=en_pad_idx)
         self.ja_emb = torch.nn.Embedding(ja_embs, model_dim, padding_idx=ja_pad_idx)
         self.linear = torch.nn.Linear(model_dim, ja_embs)
+        self.max_seq_len = max_seq_len
 
     def forward(self, x, y, x_pad_mask, y_pad_mask):
         x = self.en_emb(x)
@@ -34,6 +35,21 @@ class EtoJModel(torch.nn.Module):
 
     def ja_decode(self, y):
         return torch.argmax(y, 2)
+
+    def translate(self, x, sos_id, eos_id):
+        x = [self.en_emb(x)]
+        y = [[sos_id]]
+        y = self.ja_emb(y)
+        result = ""
+        for i in range(self.max_seq_len):
+            y = self.transformer(x, y)
+            result = self.ja_decode(y)
+            if result[0, -1] == eos_id:
+                break
+        return result
+
+    def load_model(self, path):
+        self.transformer = torch.load(path)
 
 
 def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
