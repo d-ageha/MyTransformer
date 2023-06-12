@@ -55,6 +55,7 @@ class EtoJModel(torch.nn.Module):
 def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_filename: str = "model"):
     if not model_save_dir.endswith("/"):
         model_save_dir = model_save_dir + "/"
+    print("output:" + model_save_dir + model_save_filename)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     torch.cuda.empty_cache()
     print(device)
@@ -120,8 +121,8 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 
 if __name__ == "__main__":
     print(torch.__version__)
-    if (sys.argv.__len__() < 3):
+    if (sys.argv.__len__() < 5):
         model = train("dataset/train_p", "dataset/dev_p", 128, 10, 5, lr=1)
     else:
-        model = train("dataset/train_p", "dataset/dev_p", 128, 10, 5, lr=1,
-                      model_save_dir=sys.argv[1], model_save_filename=sys.argv[2])
+        model = train(sys.argv[1], sys.argv[2], 128, 10, 5, lr=1,
+                      model_save_dir=sys.argv[3], model_save_filename=sys.argv[4])
