@@ -13,7 +13,7 @@ class EtoJModel(torch.nn.Module):
     def __init__(self, model_dim: int, en_pad_idx: int, ja_pad_idx: int, max_seq_len: int, en_embs: int, ja_embs: int) -> None:
         super().__init__()
         self.transformer = Transformer(6, 6, 8, model_dim, max_seq_len, 0.1)
-        #self.transformer = torch.nn.Transformer(model_dim, 8, batch_first=True)
+        # self.transformer = torch.nn.Transformer(model_dim, 8, batch_first=True)
         self.en_emb = torch.nn.Embedding(en_embs, model_dim, padding_idx=en_pad_idx)
         self.ja_emb = torch.nn.Embedding(ja_embs, model_dim, padding_idx=ja_pad_idx)
         self.linear = torch.nn.Linear(model_dim, ja_embs)
@@ -23,7 +23,7 @@ class EtoJModel(torch.nn.Module):
         x = self.en_emb(x)
         y = self.ja_emb(y)
         out = self.transformer(x, y, x_pad_mask, y_pad_mask)
-        #out = self.transformer(x, y, src_key_padding_mask=x_pad_mask == 0, tgt_key_padding_mask=y_pad_mask == 0)
+        # out = self.transformer(x, y, src_key_padding_mask=x_pad_mask == 0, tgt_key_padding_mask=y_pad_mask == 0)
         out = self.linear(out)
         return out
 
@@ -52,7 +52,9 @@ class EtoJModel(torch.nn.Module):
         self.transformer = torch.load(path)
 
 
-def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
+def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_filename: str = "model"):
+    if not model_save_dir.endswith("/"):
+        model_save_dir = model_save_dir + "/"
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     torch.cuda.empty_cache()
     print(device)
@@ -100,7 +102,7 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
                 print(out_tokens[0])
                 print(train_dataset.ja_tokenizer.decode(out_tokens[0]))
                 print(train_dataset.ja_tokenizer.decode(ja_tokens[0]))
-                torch.save(model.state_dict(), "output/JESC_Transformer_Model")
+                torch.save(model.state_dict(), model_save_dir + model_save_filename)
 
         train_loss /= train_dataloader.__len__()
         model.train(False)
