@@ -126,8 +126,8 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 
 if __name__ == "__main__":
     print(torch.__version__)
-    if (sys.argv.__len__() < 5):
+    if (sys.argv.__len__() < 6):
         model = train("dataset/train_p", "dataset/dev_p", 128, 10, 5, lr=1)
     else:
-        model = train(sys.argv[1], sys.argv[2], 128, 10, 5, lr=1,
-                      model_save_dir=sys.argv[3], model_save_filename=sys.argv[4])
+        model = train(sys.argv[1], sys.argv[2], 128, 10, 5, lr=int(sys.argv[3]),
+                      model_save_dir=sys.argv[4], model_save_filename=sys.argv[5])
