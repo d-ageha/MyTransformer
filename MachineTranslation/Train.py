@@ -20,6 +20,7 @@ class EtoJModel(torch.nn.Module):
         self.en_emb = torch.nn.Embedding(en_embs, model_dim, padding_idx=en_pad_idx)
         self.ja_emb = torch.nn.Embedding(ja_embs, model_dim, padding_idx=ja_pad_idx)
         self.linear = torch.nn.Linear(model_dim, ja_embs)
+        self.softmax = torch.nn.Softmax(2)
         self.max_seq_len = max_seq_len
 
     def forward(self, x, y, x_pad_mask, y_pad_mask):
@@ -30,6 +31,8 @@ class EtoJModel(torch.nn.Module):
         else:
             out = self.transformer(x, y, src_key_padding_mask=x_pad_mask == 0, tgt_key_padding_mask=y_pad_mask == 0)
         out = self.linear(out)
+        out = self.softmax(out)
+        out = torch.logit(out)
         return out
 
     def en_embed(self, x):
@@ -59,8 +62,18 @@ class EtoJModel(torch.nn.Module):
                 break
         return result
 
+    def load_model(self, path):
+        self.transformer = torch.load(path)
 
-def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
+
+def get_learning_rate(step: int, d_model: int, warmup: int):
+    return (d_model ** -0.5) * min(step ** (-0.5), step * warmup ** (-1.5))
+
+
+def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_filename: str = "model", model_load_filepath: str | None = None):
+    if not model_save_dir.endswith("/"):
+        model_save_dir = model_save_dir + "/"
+    print("output:" + model_save_dir + model_save_filename)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     torch.cuda.empty_cache()
     print(device)
@@ -74,16 +87,24 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
     ja_pad_id = train_dataset.ja_tokenizer.pad_token_id or 0
     model = EtoJModel(dim, en_pad_id, ja_pad_id, max_length, len(
         train_dataset.en_tokenizer), len(train_dataset.ja_tokenizer))
+    if model_load_filepath:
+        model.load_model(model_load_filepath)
     model.to(device)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=ja_pad_id, label_smoothing=0.1, reduction="sum")
+    optim = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.98))
+    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=ja_pad_id, label_smoothing=0.1)
+    step = 0
     for e in range(epoch):
         model.train(True)
         train_loss = 0.0
         valid_loss = 0.0
         t = tqdm(enumerate(train_dataloader), total=len(train_dataloader))
         for i, data in t:
+            step += 1
+            lr = get_learning_rate(step, dim, 4000)
+            for g in optim.param_groups:
+                g['lr'] = lr
+
             en, ja = data["en"], data["ja"]
             en_tokens = torch.stack(en["input_ids"]).transpose(0, 1).to(device)
             ja_tokens = torch.stack(ja["input_ids"]).transpose(0, 1).to(device)
@@ -91,29 +112,37 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01):
                 0, 1).to(device), torch.stack(ja["attention_mask"]).transpose(0, 1).to(device)
 
             if en_tokens.dim() == 1:
+                # it batch size=1, unsqueeze and tensorize(?) the tokens
                 en_tokens, ja_tokens = en_tokens.unsqueeze(0), ja_tokens.unsqueeze(0)
                 en_masks, ja_masks = en_masks.unsqueeze(0), ja_masks.unsqueeze(0)
 
             optim.zero_grad()
             out = model(en_tokens, ja_tokens, en_masks, ja_masks)
+            # ignore the last token of output and the first token of the ground truth
             loss = loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
             loss.backward()
             optim.step()
             model.train(False)
             with torch.no_grad():
                 t.set_postfix_str("Epoch: {} loss={}".format(e, loss))
-                if i % 100 == 0:
-                    out_tokens = model.ja_decode(out).to(device)
-                    out_tokens = out_tokens.masked_fill(ja_masks == 0, ja_pad_id)
-                    print(out_tokens[0])
-                    print(train_dataset.ja_tokenizer.decode(out_tokens[0]))
-                    print(train_dataset.ja_tokenizer.decode(ja_tokens[0][1:]))
-                    print(ja_tokens[0])
-                    torch.save(model.state_dict(), "output/JESC_Transformer_Model")
+            if i % 100 == 0:
+                out_tokens = model.ja_decode(out).to(device)
+                out_tokens = out_tokens.masked_fill(ja_masks == 0, ja_pad_id)
+                print(out_tokens[0])
+                print(train_dataset.ja_tokenizer.decode(out_tokens[0]))
+                print(train_dataset.ja_tokenizer.decode(ja_tokens[0]))
+                torch.save(model.state_dict(), model_save_dir + model_save_filename)
 
     return model
 
 
 if __name__ == "__main__":
     print(torch.__version__)
-    model = train("dataset/train_p", "dataset/dev_p", 728, 2, 10, lr=0.0001)
+    if (sys.argv.__len__() == 7):
+        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, lr=float(sys.argv[3]),
+                      model_save_dir=sys.argv[4], model_save_filename=sys.argv[5], model_load_filepath=sys.argv[6])
+    elif (sys.argv.__len__() == 6):
+        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, lr=float(sys.argv[3]),
+                      model_save_dir=sys.argv[4], model_save_filename=sys.argv[5])
+    else:
+        model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5, lr=1)
