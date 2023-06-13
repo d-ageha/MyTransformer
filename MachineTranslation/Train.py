@@ -95,8 +95,8 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 
             optim.zero_grad()
             out = model(en_tokens, ja_tokens, en_masks, ja_masks)
-            loss = loss_fn(out.transpose(1, 2), ja_tokens)
-            # loss = loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
+            # ignore the last token of output and the first token of the ground truth
+            loss = loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
             train_loss += float(loss)
             loss.backward()
             optim.step()
