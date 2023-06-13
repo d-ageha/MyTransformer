@@ -17,6 +17,7 @@ class EtoJModel(torch.nn.Module):
         self.en_emb = torch.nn.Embedding(en_embs, model_dim, padding_idx=en_pad_idx)
         self.ja_emb = torch.nn.Embedding(ja_embs, model_dim, padding_idx=ja_pad_idx)
         self.linear = torch.nn.Linear(model_dim, ja_embs)
+        self.softmax = torch.nn.Softmax(2)
         self.max_seq_len = max_seq_len
 
     def forward(self, x, y, x_pad_mask, y_pad_mask):
@@ -25,6 +26,8 @@ class EtoJModel(torch.nn.Module):
         out = self.transformer(x, y, x_pad_mask, y_pad_mask)
         # out = self.transformer(x, y, src_key_padding_mask=x_pad_mask == 0, tgt_key_padding_mask=y_pad_mask == 0)
         out = self.linear(out)
+        out = self.softmax(out)
+        out = torch.logit(out)
         return out
 
     def en_embed(self, x):
@@ -86,12 +89,14 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
                 0, 1).to(device), torch.stack(ja["attention_mask"]).transpose(0, 1).to(device)
 
             if en_tokens.dim() == 1:
+                # it batch size=1, unsqueeze and tensorize(?) the tokens
                 en_tokens, ja_tokens = en_tokens.unsqueeze(0), ja_tokens.unsqueeze(0)
                 en_masks, ja_masks = en_masks.unsqueeze(0), ja_masks.unsqueeze(0)
 
             optim.zero_grad()
             out = model(en_tokens, ja_tokens, en_masks, ja_masks)
-            loss = loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
+            loss = loss_fn(out.transpose(1, 2), ja_tokens)
+            # loss = loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
             train_loss += float(loss)
             loss.backward()
             optim.step()

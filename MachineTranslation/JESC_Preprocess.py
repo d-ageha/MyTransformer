@@ -21,6 +21,7 @@ def PreProcess(filename: str, output: str, *prcs: Callable[[str], str]):
 if __name__ == "__main__":
     if sys.argv.__len__() < 2:
         print(sys.argv[0] + " dataset_root_dir_name")
+        exit()
     if not sys.argv[1].endswith("/"):
         sys.argv[1] += "/"
     dirname = sys.argv[1]
