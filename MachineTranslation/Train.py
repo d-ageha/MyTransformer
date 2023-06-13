@@ -59,7 +59,7 @@ def get_learning_rate(step: int, d_model: int, warmup: int):
     return (d_model ** -0.5) * min(step ** (-0.5), step * warmup ** (-1.5))
 
 
-def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_filename: str = "model"):
+def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_filename: str = "model", model_load_filepath: str | None = None):
     if not model_save_dir.endswith("/"):
         model_save_dir = model_save_dir + "/"
     print("output:" + model_save_dir + model_save_filename)
@@ -76,6 +76,8 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
     ja_pad_id = train_dataset.ja_tokenizer.pad_token_id or 0
     model = EtoJModel(dim, en_pad_id, ja_pad_id, max_length, len(
         train_dataset.en_tokenizer), len(train_dataset.ja_tokenizer))
+    if model_load_filepath:
+        model.load_model(model_load_filepath)
     model.to(device)
 
     optim = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.98))
@@ -136,8 +138,11 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 
 if __name__ == "__main__":
     print(torch.__version__)
-    if (sys.argv.__len__() < 6):
-        model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5, lr=1)
-    else:
+    if (sys.argv.__len__() == 7):
+        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, lr=float(sys.argv[3]),
+                      model_save_dir=sys.argv[4], model_save_filename=sys.argv[5], model_load_filepath=sys.argv[6])
+    elif (sys.argv.__len__() == 6):
         model = train(sys.argv[1], sys.argv[2], 128, 2, 5, lr=float(sys.argv[3]),
                       model_save_dir=sys.argv[4], model_save_filename=sys.argv[5])
+    else:
+        model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5, lr=1)
