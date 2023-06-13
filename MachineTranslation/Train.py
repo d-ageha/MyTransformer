@@ -62,7 +62,7 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     torch.cuda.empty_cache()
     print(device)
-    max_length = 70
+    max_length = 90
     train_dataset = JESC_DataSet(train, max_length)
     val_dataset = JESC_DataSet(val, max_length)
     train_dataloader = DataLoader(train_dataset, batch, True)
