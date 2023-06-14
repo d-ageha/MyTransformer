@@ -19,8 +19,10 @@ if __name__ == "__main__":
     while True:
         en = input()
         en = dataset.en_tokenizer([en], padding="max_length", max_length=130)
+        en_tokens_list = en["input_ids"]
         en_tokens = torch.tensor(en["input_ids"])
         en_pad_mask = torch.tensor(en["attention_mask"])
+        print(en_tokens)
         res = model.translate(en_tokens, dataset.ja_tokenizer.cls_token_id,
                               dataset.ja_tokenizer.sep_token_id, ja_pad_id, en_pad_mask)
         print(res)

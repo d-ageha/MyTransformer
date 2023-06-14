@@ -96,7 +96,7 @@ class DecoderLayer(nn.Module):
         h = self.lnorm1(h)
         h2 = self.att_layer(h, enc, enc, enc_pad_mask)
         h2 = self.dropout2(h2) + h
-        h2 = self.lnorm1(h2)
+        h2 = self.lnorm2(h2)
         h3 = self.ff_layer(h2)
         h3 = self.dropout3(h3) + h2
-        return self.lnorm1(h3)
+        return self.lnorm3(h3)

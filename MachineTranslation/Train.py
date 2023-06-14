@@ -54,6 +54,8 @@ class EtoJModel(torch.nn.Module):
             if not self.use_mine:
                 pad_mask = pad_mask == 0
                 y_pad_mask = y_pad_mask == 0
+            print("###y###")
+            print(y, y.shape)
             y = self.forward(x, y, pad_mask, y_pad_mask)
             next_token = torch.tensor([[self.ja_decode(y)[0, i]]])
             result = torch.cat((result, next_token), dim=1)
@@ -70,7 +72,7 @@ def get_learning_rate(step: int, d_model: int, warmup: int):
     return (d_model ** -0.5) * min(step ** (-0.5), step * warmup ** (-1.5))
 
 
-def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_filename: str = "model", model_load_filepath: str | None = None):
+def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_filename: str = "model", model_load_filepath: str | None = None, use_mine: bool = True):
     if not model_save_dir.endswith("/"):
         model_save_dir = model_save_dir + "/"
     print("output:" + model_save_dir + model_save_filename)
@@ -86,7 +88,7 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
     en_pad_id = train_dataset.en_tokenizer.pad_token_id or 0
     ja_pad_id = train_dataset.ja_tokenizer.pad_token_id or 0
     model = EtoJModel(dim, en_pad_id, ja_pad_id, max_length, len(
-        train_dataset.en_tokenizer), len(train_dataset.ja_tokenizer))
+        train_dataset.en_tokenizer), len(train_dataset.ja_tokenizer), use_mine)
     if model_load_filepath:
         model.load_model(model_load_filepath)
     model.to(device)
@@ -128,7 +130,7 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
             if i % 100 == 0:
                 out_tokens = model.ja_decode(out).to(device)
                 out_tokens = out_tokens.masked_fill(ja_masks == 0, ja_pad_id)
-                print(out_tokens[0])
+                print(train_dataset.en_tokenizer.decode(en_tokens[0]))
                 print(train_dataset.ja_tokenizer.decode(out_tokens[0]))
                 print(train_dataset.ja_tokenizer.decode(ja_tokens[0]))
                 torch.save(model.state_dict(), model_save_dir + model_save_filename)
@@ -139,10 +141,10 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 if __name__ == "__main__":
     print(torch.__version__)
     if (sys.argv.__len__() == 7):
-        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, lr=float(sys.argv[3]),
+        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, use_mine=bool(sys.argv[3]),
                       model_save_dir=sys.argv[4], model_save_filename=sys.argv[5], model_load_filepath=sys.argv[6])
     elif (sys.argv.__len__() == 6):
-        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, lr=float(sys.argv[3]),
+        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, use_mine=bool(sys.argv[3]),
                       model_save_dir=sys.argv[4], model_save_filename=sys.argv[5])
     else:
         model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5, lr=1)
