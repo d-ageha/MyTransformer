@@ -72,10 +72,10 @@ def get_learning_rate(step: int, d_model: int, warmup: int):
     return (d_model ** -0.5) * min(step ** (-0.5), step * warmup ** (-1.5))
 
 
-def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_filename: str = "model", model_load_filepath: str | None = None, use_mine: bool = True):
+def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_prefix: str = "model", model_load_filepath: str | None = None, use_mine: bool = True, previous_steps: int = 0):
     if not model_save_dir.endswith("/"):
         model_save_dir = model_save_dir + "/"
-    print("output:" + model_save_dir + model_save_filename)
+    print("output:" + model_save_dir + model_save_prefix + "<STEP #>")
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     torch.cuda.empty_cache()
     print(device)
@@ -103,6 +103,9 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
         t = tqdm(enumerate(train_dataloader), total=len(train_dataloader))
         for i, data in t:
             step += 1
+            if previous_steps > step:
+                continue
+
             lr = get_learning_rate(step, dim, 4000)
             for g in optim.param_groups:
                 g['lr'] = lr
@@ -133,7 +136,7 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
                 print(train_dataset.en_tokenizer.decode(en_tokens[0]))
                 print(train_dataset.ja_tokenizer.decode(out_tokens[0]))
                 print(train_dataset.ja_tokenizer.decode(ja_tokens[0]))
-                torch.save(model.state_dict(), model_save_dir + model_save_filename)
+                torch.save(model.state_dict(), model_save_dir + model_save_prefix + str(i))
 
     return model
 
@@ -141,10 +144,12 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 if __name__ == "__main__":
     print(torch.__version__)
     if (sys.argv.__len__() == 7):
-        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, use_mine=bool(sys.argv[3]),
-                      model_save_dir=sys.argv[4], model_save_filename=sys.argv[5], model_load_filepath=sys.argv[6])
-    elif (sys.argv.__len__() == 6):
-        model = train(sys.argv[1], sys.argv[2], 128, 2, 5, use_mine=bool(sys.argv[3]),
-                      model_save_dir=sys.argv[4], model_save_filename=sys.argv[5])
-    else:
+        model = train(sys.argv[1], sys.argv[2], 512, 1, 10, use_mine=bool(sys.argv[3]),
+                      model_save_dir=sys.argv[4], model_save_prefix=sys.argv[5], model_load_filepath=sys.argv[6])
+    if (sys.argv.__len__() == 6):
+        model = train(sys.argv[1], sys.argv[2], 512, 1, 10, use_mine=bool(sys.argv[3]),
+                      model_save_dir=sys.argv[4], model_save_prefix=sys.argv[5])
+    elif (sys.argv.__len__() == 1):
         model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5, lr=1)
+    else:
+        print(sys.argv[0] + " train_dataset_path test_dataset_path use_mine model_save_dir model_save_prefix model_load_filepath previous_steps")
