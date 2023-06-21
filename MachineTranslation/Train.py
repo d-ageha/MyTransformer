@@ -64,9 +64,6 @@ class EtoJModel(torch.nn.Module):
                 break
         return result
 
-    def load_model(self, path):
-        self.transformer = torch.load(path)
-
 
 def get_learning_rate(step: int, d_model: int, warmup: int):
     return (d_model ** -0.5) * min(step ** (-0.5), step * warmup ** (-1.5))
@@ -90,7 +87,7 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
     model = EtoJModel(dim, en_pad_id, ja_pad_id, max_length, len(
         train_dataset.en_tokenizer), len(train_dataset.ja_tokenizer), use_mine)
     if model_load_filepath:
-        model.load_model(model_load_filepath)
+        model = torch.load(model_load_filepath)
     model.to(device)
 
     optim = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.98))
