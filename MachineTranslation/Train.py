@@ -33,14 +33,8 @@ class EtoJModel(torch.nn.Module):
         else:
             out = self.transformer(x, y, src_key_padding_mask=x_pad_mask == 0, tgt_key_padding_mask=y_pad_mask == 0)
         out = self.linear(out)
-        print("linear")
-        print(out)
         out = self.softmax(out)
-        print("softmax")
-        print(out)
         out = torch.logit(out)
-        print("logit")
-        print(out)
         return out
 
     def en_embed(self, x):
@@ -129,6 +123,8 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
             optim.zero_grad()
             out = model(en_tokens, ja_tokens, en_masks, ja_masks)
             # ignore the last token of output and the first token of the ground truth
+
+            print(out.transpose(1, 2)[:, :, :-1].shape, ja_tokens[:, 1:].shape)
             loss = loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
             loss.backward()
             optim.step()
