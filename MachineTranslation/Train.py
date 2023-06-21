@@ -143,9 +143,9 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 
 if __name__ == "__main__":
     print(torch.__version__)
-    if (sys.argv.__len__() == 7):
+    if (sys.argv.__len__() == 8):
         model = train(sys.argv[1], sys.argv[2], 512, 1, 10, use_mine=bool(sys.argv[3]),
-                      model_save_dir=sys.argv[4], model_save_prefix=sys.argv[5], model_load_filepath=sys.argv[6])
+                      model_save_dir=sys.argv[4], model_save_prefix=sys.argv[5], model_load_filepath=sys.argv[6], previous_steps=int(sys.argv[7]))
     if (sys.argv.__len__() == 6):
         model = train(sys.argv[1], sys.argv[2], 512, 1, 10, use_mine=bool(sys.argv[3]),
                       model_save_dir=sys.argv[4], model_save_prefix=sys.argv[5])
