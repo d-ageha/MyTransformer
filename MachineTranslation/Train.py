@@ -26,6 +26,8 @@ class EtoJModel(torch.nn.Module):
     def forward(self, x, y, x_pad_mask, y_pad_mask):
         x = self.en_emb(x)
         y = self.ja_emb(y)
+        print("inputs")
+        print(x, y)
         if self.use_mine:
             out = self.transformer(x, y, x_pad_mask, y_pad_mask)
         else:
