@@ -31,6 +31,8 @@ class EtoJModel(torch.nn.Module):
         else:
             out = self.transformer(x, y, src_key_padding_mask=x_pad_mask == 0, tgt_key_padding_mask=y_pad_mask == 0)
         out = self.linear(out)
+        print("linear")
+        print(out)
         out = self.softmax(out)
         print("softmax")
         print(out)
