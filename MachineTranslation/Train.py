@@ -137,6 +137,7 @@ def train(
                 continue
 
             lr = get_learning_rate(step, dim, 4000)
+            print("lr:{}".format(lr))
             for g in optim.param_groups:
                 g["lr"] = lr
 
@@ -162,7 +163,7 @@ def train(
             model.train(False)
             with torch.no_grad():
                 t.set_postfix_str("Epoch: {} loss={}".format(e, loss))
-            if i % 100 == 0:
+            if step != 0 and step % 100 == 0:
                 out_tokens = model.ja_decode(out).to(device)
                 out_tokens = out_tokens.masked_fill(ja_masks == 0, ja_pad_id)
                 print(train_dataset.en_tokenizer.decode(en_tokens[0]))
@@ -170,7 +171,7 @@ def train(
                 print(train_dataset.ja_tokenizer.decode(ja_tokens[0]))
                 torch.save(model.state_dict(), model_save_dir + model_save_name)
                 log = open(model_save_dir + "last_saved_step.txt", "w")
-                log.write(str(i))
+                log.write(str(step))
                 log.close()
 
     return model
