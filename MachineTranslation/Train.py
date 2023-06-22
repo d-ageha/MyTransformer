@@ -201,7 +201,7 @@ if __name__ == "__main__":
             int(sys.argv[3]),
             int(sys.argv[4]),
             int(sys.argv[5]),
-            warmup=int(sys.argv[6])
+            warmup=int(sys.argv[6]),
             use_mine=bool(sys.argv[7]),
             model_save_dir=sys.argv[8],
             model_save_name=sys.argv[9],
