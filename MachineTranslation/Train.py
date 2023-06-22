@@ -88,7 +88,6 @@ def train(
     dim=256,
     epoch=10,
     batch=1,
-    lr=0.01,
     model_save_dir: str = "./output/",
     model_save_name: str = "model",
     model_load_filepath: str | None = None,
@@ -124,7 +123,7 @@ def train(
         )
     model.to(device)
 
-    optim = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.98))
+    optim = torch.optim.Adam(model.parameters(), lr=1, betas=(0.9, 0.98))
     loss_fn = torch.nn.CrossEntropyLoss(ignore_index=ja_pad_id, label_smoothing=0.1)
     step = 0
     for e in range(epoch):
@@ -179,32 +178,32 @@ def train(
 
 if __name__ == "__main__":
     print(torch.__version__)
-    if sys.argv.__len__() == 8:
+    if sys.argv.__len__() == 11:
         model = train(
             sys.argv[1],
             sys.argv[2],
-            512,
-            1,
-            10,
-            use_mine=bool(sys.argv[3]),
-            model_save_dir=sys.argv[4],
-            model_save_name=sys.argv[5],
-            model_load_filepath=sys.argv[6],
-            previous_steps=int(sys.argv[7]),
+            int(sys.argv[3]),
+            int(sys.argv[4]),
+            int(sys.argv[5]),
+            use_mine=bool(sys.argv[6]),
+            model_save_dir=sys.argv[7],
+            model_save_name=sys.argv[8],
+            model_load_filepath=sys.argv[9],
+            previous_steps=int(sys.argv[10]),
         )
-    if sys.argv.__len__() == 6:
+    if sys.argv.__len__() == 9:
         model = train(
             sys.argv[1],
             sys.argv[2],
-            512,
-            1,
-            10,
-            use_mine=bool(sys.argv[3]),
-            model_save_dir=sys.argv[4],
-            model_save_name=sys.argv[5],
+            int(sys.argv[3]),
+            int(sys.argv[4]),
+            int(sys.argv[5]),
+            use_mine=bool(sys.argv[6]),
+            model_save_dir=sys.argv[7],
+            model_save_name=sys.argv[8],
         )
     elif sys.argv.__len__() == 1:
-        model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5, lr=1)
+        model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5)
     else:
         print(
             sys.argv[0]
