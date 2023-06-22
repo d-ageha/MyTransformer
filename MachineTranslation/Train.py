@@ -4,13 +4,23 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(sys.path[0]), 'Model'))
+
+sys.path.append(os.path.join(os.path.dirname(sys.path[0]), "Model"))
 from Transformer import Transformer
 from JESC_DataSet import JESC_DataSet
 
 
 class EtoJModel(torch.nn.Module):
-    def __init__(self, model_dim: int, en_pad_idx: int, ja_pad_idx: int, max_seq_len: int, en_embs: int, ja_embs: int, use_mine=True) -> None:
+    def __init__(
+        self,
+        model_dim: int,
+        en_pad_idx: int,
+        ja_pad_idx: int,
+        max_seq_len: int,
+        en_embs: int,
+        ja_embs: int,
+        use_mine=True,
+    ) -> None:
         super().__init__()
         self.use_mine = use_mine
         if use_mine:
@@ -30,7 +40,12 @@ class EtoJModel(torch.nn.Module):
         if self.use_mine:
             out = self.transformer(x, y, x_pad_mask, y_pad_mask)
         else:
-            out = self.transformer(x, y, src_key_padding_mask=x_pad_mask == 0, tgt_key_padding_mask=y_pad_mask == 0)
+            out = self.transformer(
+                x,
+                y,
+                src_key_padding_mask=x_pad_mask == 0,
+                tgt_key_padding_mask=y_pad_mask == 0,
+            )
         out = self.linear(out)
         return out
 
@@ -46,33 +61,46 @@ class EtoJModel(torch.nn.Module):
     def translate(self, x, sos_id, eos_id, ja_pad_id, pad_mask):
         result = torch.tensor([sos_id]).unsqueeze(0)
         for i in range(self.max_seq_len - 1):
-            y_pads = torch.tensor([[ja_pad_id for j in range(self.max_seq_len - (i + 1))]])
+            y_pads = torch.tensor(
+                [[ja_pad_id for j in range(self.max_seq_len - (i + 1))]]
+            )
             y = torch.cat((result, y_pads), dim=1)
-            y_pad_mask = [1 for j in range(i + 1)] + [0 for j in range(self.max_seq_len - (i + 1))]
+            y_pad_mask = [1 for j in range(i + 1)] + [
+                0 for j in range(self.max_seq_len - (i + 1))
+            ]
             y_pad_mask = torch.tensor(y_pad_mask, dtype=torch.int64).unsqueeze(0)
             if not self.use_mine:
                 pad_mask = pad_mask == 0
                 y_pad_mask = y_pad_mask == 0
-            print("###y###")
-            print(y, y.shape)
             y = self.forward(x, y, pad_mask, y_pad_mask)
             next_token = torch.tensor([[self.ja_decode(y)[0, i]]])
             result = torch.cat((result, next_token), dim=1)
-            print(result, result.shape)
             if result[0, -1] == eos_id:
                 break
         return result
 
 
 def get_learning_rate(step: int, d_model: int, warmup: int):
-    return (d_model ** -0.5) * min(step ** (-0.5), step * warmup ** (-1.5))
+    return (d_model**-0.5) * min(step ** (-0.5), step * warmup ** (-1.5))
 
 
-def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_dir: str = "./output/", model_save_name: str = "model", model_load_filepath: str | None = None, use_mine: bool = True, previous_steps: int = 0):
+def train(
+    train: str,
+    val: str,
+    dim=256,
+    epoch=10,
+    batch=1,
+    lr=0.01,
+    model_save_dir: str = "./output/",
+    model_save_name: str = "model",
+    model_load_filepath: str | None = None,
+    use_mine: bool = True,
+    previous_steps: int = 0,
+):
     if not model_save_dir.endswith("/"):
         model_save_dir = model_save_dir + "/"
     print("output:" + model_save_dir + model_save_name)
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     torch.cuda.empty_cache()
     print(device)
     max_length = 130
@@ -83,10 +111,19 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 
     en_pad_id = train_dataset.en_tokenizer.pad_token_id or 0
     ja_pad_id = train_dataset.ja_tokenizer.pad_token_id or 0
-    model = EtoJModel(dim, en_pad_id, ja_pad_id, max_length, len(
-        train_dataset.en_tokenizer), len(train_dataset.ja_tokenizer), use_mine)
+    model = EtoJModel(
+        dim,
+        en_pad_id,
+        ja_pad_id,
+        max_length,
+        len(train_dataset.en_tokenizer),
+        len(train_dataset.ja_tokenizer),
+        use_mine,
+    )
     if model_load_filepath:
-        model.load_state_dict(torch.load(model_load_filepath, map_location=torch.device(device)))
+        model.load_state_dict(
+            torch.load(model_load_filepath, map_location=torch.device(device))
+        )
     model.to(device)
 
     optim = torch.optim.Adam(model.parameters(), lr=lr, betas=(0.9, 0.98))
@@ -104,13 +141,14 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 
             lr = get_learning_rate(step, dim, 4000)
             for g in optim.param_groups:
-                g['lr'] = lr
+                g["lr"] = lr
 
             en, ja = data["en"], data["ja"]
             en_tokens = torch.stack(en["input_ids"]).transpose(0, 1).to(device)
             ja_tokens = torch.stack(ja["input_ids"]).transpose(0, 1).to(device)
-            en_masks, ja_masks = torch.stack(en["attention_mask"]).transpose(
-                0, 1).to(device), torch.stack(ja["attention_mask"]).transpose(0, 1).to(device)
+            en_masks, ja_masks = torch.stack(en["attention_mask"]).transpose(0, 1).to(
+                device
+            ), torch.stack(ja["attention_mask"]).transpose(0, 1).to(device)
 
             if en_tokens.dim() == 1:
                 # it batch size=1, unsqueeze and tensorize(?) the tokens
@@ -121,7 +159,6 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
             out = model(en_tokens, ja_tokens, en_masks, ja_masks)
             # ignore the last token of output and the first token of the ground truth
 
-            print(out.transpose(1, 2)[:, :, :-1].shape, ja_tokens[:, 1:].shape)
             loss = loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
             loss.backward()
             optim.step()
@@ -144,13 +181,34 @@ def train(train: str, val: str, dim=256, epoch=10, batch=1, lr=0.01, model_save_
 
 if __name__ == "__main__":
     print(torch.__version__)
-    if (sys.argv.__len__() == 8):
-        model = train(sys.argv[1], sys.argv[2], 512, 1, 10, use_mine=bool(sys.argv[3]),
-                      model_save_dir=sys.argv[4], model_save_name=sys.argv[5], model_load_filepath=sys.argv[6], previous_steps=int(sys.argv[7]))
-    if (sys.argv.__len__() == 6):
-        model = train(sys.argv[1], sys.argv[2], 512, 1, 10, use_mine=bool(sys.argv[3]),
-                      model_save_dir=sys.argv[4], model_save_name=sys.argv[5])
-    elif (sys.argv.__len__() == 1):
+    if sys.argv.__len__() == 8:
+        model = train(
+            sys.argv[1],
+            sys.argv[2],
+            512,
+            1,
+            10,
+            use_mine=bool(sys.argv[3]),
+            model_save_dir=sys.argv[4],
+            model_save_name=sys.argv[5],
+            model_load_filepath=sys.argv[6],
+            previous_steps=int(sys.argv[7]),
+        )
+    if sys.argv.__len__() == 6:
+        model = train(
+            sys.argv[1],
+            sys.argv[2],
+            512,
+            1,
+            10,
+            use_mine=bool(sys.argv[3]),
+            model_save_dir=sys.argv[4],
+            model_save_name=sys.argv[5],
+        )
+    elif sys.argv.__len__() == 1:
         model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5, lr=1)
     else:
-        print(sys.argv[0] + " train_dataset_path test_dataset_path use_mine model_save_dir model_save_name model_load_filepath previous_steps")
+        print(
+            sys.argv[0]
+            + " train_dataset_path test_dataset_path use_mine model_save_dir model_save_name model_load_filepath previous_steps"
+        )
