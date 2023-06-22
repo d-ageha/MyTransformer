@@ -20,7 +20,6 @@ class EtoJModel(torch.nn.Module):
         self.en_emb = torch.nn.Embedding(en_embs, model_dim, padding_idx=en_pad_idx)
         self.ja_emb = torch.nn.Embedding(ja_embs, model_dim, padding_idx=ja_pad_idx)
         self.linear = torch.nn.Linear(model_dim, ja_embs)
-        self.softmax = torch.nn.Softmax(2)
         self.max_seq_len = max_seq_len
 
     def forward(self, x, y, x_pad_mask, y_pad_mask):
@@ -33,8 +32,6 @@ class EtoJModel(torch.nn.Module):
         else:
             out = self.transformer(x, y, src_key_padding_mask=x_pad_mask == 0, tgt_key_padding_mask=y_pad_mask == 0)
         out = self.linear(out)
-        out = self.softmax(out)
-        out = torch.logit(out)
         return out
 
     def en_embed(self, x):
