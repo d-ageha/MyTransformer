@@ -88,6 +88,7 @@ def train(
     dim=256,
     epoch=10,
     batch=1,
+    warmup=4000,
     model_save_dir: str = "./output/",
     model_save_name: str = "model",
     model_load_filepath: str | None = None,
@@ -136,7 +137,7 @@ def train(
             if previous_steps > step:
                 continue
 
-            lr = get_learning_rate(step, dim, 4000)
+            lr = get_learning_rate(step, dim, warmup)
             print("lr:{}".format(lr))
             for g in optim.param_groups:
                 g["lr"] = lr
@@ -179,29 +180,31 @@ def train(
 
 if __name__ == "__main__":
     print(torch.__version__)
-    if sys.argv.__len__() == 11:
+    if sys.argv.__len__() == 12:
         model = train(
             sys.argv[1],
             sys.argv[2],
             int(sys.argv[3]),
             int(sys.argv[4]),
             int(sys.argv[5]),
-            use_mine=bool(sys.argv[6]),
-            model_save_dir=sys.argv[7],
-            model_save_name=sys.argv[8],
-            model_load_filepath=sys.argv[9],
-            previous_steps=int(sys.argv[10]),
+            warmup=int(sys.argv[6])
+            use_mine=bool(sys.argv[7]),
+            model_save_dir=sys.argv[8],
+            model_save_name=sys.argv[9],
+            model_load_filepath=sys.argv[10],
+            previous_steps=int(sys.argv[11]),
         )
-    if sys.argv.__len__() == 9:
+    if sys.argv.__len__() == 10:
         model = train(
             sys.argv[1],
             sys.argv[2],
             int(sys.argv[3]),
             int(sys.argv[4]),
             int(sys.argv[5]),
-            use_mine=bool(sys.argv[6]),
-            model_save_dir=sys.argv[7],
-            model_save_name=sys.argv[8],
+            warmup=int(sys.argv[6])
+            use_mine=bool(sys.argv[7]),
+            model_save_dir=sys.argv[8],
+            model_save_name=sys.argv[9],
         )
     elif sys.argv.__len__() == 1:
         model = train("dataset/train_p", "dataset/dev_p", 128, 2, 5)
