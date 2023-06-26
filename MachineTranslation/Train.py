@@ -104,7 +104,12 @@ def train(
     max_length = 130
     train_dataset = JESC_DataSet(train, max_length)
     val_dataset = JESC_DataSet(val, max_length)
-    train_dataloader = DataLoader(train_dataset, batch, True)
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch,
+        True,
+        pin_memory=True,
+    )
     val_dataloader = DataLoader(val_dataset, 1, False)
 
     en_pad_id = train_dataset.en_tokenizer.pad_token_id or 0
@@ -138,32 +143,35 @@ def train(
                 continue
 
             lr = get_learning_rate(step, dim, warmup)
-            print("lr:{}".format(lr))
             for g in optim.param_groups:
                 g["lr"] = lr
 
             en, ja = data["en"], data["ja"]
             en_tokens = torch.stack(en["input_ids"]).transpose(0, 1).to(device)
             ja_tokens = torch.stack(ja["input_ids"]).transpose(0, 1).to(device)
+            for i in range(batch):
+                # show every tokens!
+                print(train_dataset.ja_tokenizer.decode(ja_tokens[i]))
+
             en_masks, ja_masks = torch.stack(en["attention_mask"]).transpose(0, 1).to(
                 device
             ), torch.stack(ja["attention_mask"]).transpose(0, 1).to(device)
 
             if en_tokens.dim() == 1:
-                # it batch size=1, unsqueeze and tensorize(?) the tokens
+                # it batch size=1, unsqueeze the tokens
                 en_tokens, ja_tokens = en_tokens.unsqueeze(0), ja_tokens.unsqueeze(0)
                 en_masks, ja_masks = en_masks.unsqueeze(0), ja_masks.unsqueeze(0)
 
             optim.zero_grad()
             out = model(en_tokens, ja_tokens, en_masks, ja_masks)
-            # ignore the last token of output and the first token of the ground truth
 
+            # ignores the last token of output and the first token of the ground truth
             loss = loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
             loss.backward()
             optim.step()
             model.train(False)
             with torch.no_grad():
-                t.set_postfix_str("Epoch: {} loss={}".format(e, loss))
+                t.set_postfix_str("Epoch: {} loss={} lr={}".format(e, loss, lr))
             if step != 0 and step % 100 == 0:
                 out_tokens = model.ja_decode(out).to(device)
                 out_tokens = out_tokens.masked_fill(ja_masks == 0, ja_pad_id)
