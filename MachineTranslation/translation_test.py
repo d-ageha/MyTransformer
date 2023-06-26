@@ -2,7 +2,6 @@ import sys
 import torch
 from transformers import AutoTokenizer
 from Train import EtoJModel
-from JESC_DataSet import JESC_DataSet
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:

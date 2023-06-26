@@ -2,6 +2,10 @@ from typing import Callable
 import sys
 import re
 
+'''
+Preprocess methods I used to process JESC dataset.
+The dataset contained too many weird lines so I had to removed them.
+'''
 
 def removeDecorativeCharacters(line: str):
     '''
@@ -37,7 +41,7 @@ def removeSpeakerName(line: str):
     return line
 
 
-def PreProcess(filename: str, output: str, *prcs: Callable[[str], str]):
+def Preprocess(filename: str, output: str, *prcs: Callable[[str], str]):
     in_file = open(filename, "r")
     out_file = open(output, "w")
     while True:
@@ -63,6 +67,6 @@ if __name__ == "__main__":
     if not sys.argv[1].endswith("/"):
         sys.argv[1] += "/"
     dirname = sys.argv[1]
-    PreProcess(dirname + "train", dirname + "train_p", removeSpeakerName,
+    Preprocess(dirname + "train", dirname + "train_p", removeSpeakerName,
                removeDecorativeCharacters, removeChineseLines)
-    PreProcess(dirname + "dev", dirname + "dev_p", removeSpeakerName, removeDecorativeCharacters, removeChineseLines)
+    Preprocess(dirname + "dev", dirname + "dev_p", removeSpeakerName, removeDecorativeCharacters, removeChineseLines)
