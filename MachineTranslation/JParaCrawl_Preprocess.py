@@ -26,7 +26,10 @@ JParaCrawl claims to work in the exact same way as ParaCrawl does, but the paper
 
 """
 
-def JParaCrawl_Preprocess(filename: str, output: str, *prcs: Callable[[list[str]], list[str]]):
+
+def JParaCrawl_Preprocess(
+    filename: str, output: str, *prcs: Callable[[list[str]], list[str]]
+):
     in_file = open(filename, "r")
     out_file = open(output, "w")
     while True:
@@ -36,15 +39,18 @@ def JParaCrawl_Preprocess(filename: str, output: str, *prcs: Callable[[list[str]
             break
         for process in prcs:
             split_line = process(split_line)
-        
+
         if len(split_line) != 2:
             continue
-        concated_line="{}\t{}".format(split_line[0],split_line[1])
+        concated_line = "{}\t{}".format(split_line[0], split_line[1])
         if len(split_line[0]) != 0 and len(split_line[1]) != 0:
             out_file.write(line)
 
-def FilterLowScores(split_line:list[str]):
-    float(split_line[2])
+
+def FilterLowScores(split_line: list[str]):
+    if float(split_line[2]) < 0.6:
+        split_line = []
+    return split_line
 
 
 if __name__ == "__main__":
@@ -52,8 +58,8 @@ if __name__ == "__main__":
         print(sys.argv[0] + " input_filepath output_filepath")
         exit()
     input_filepath = sys.argv[1]
-    output_filepath="processed.tsv"
+    output_filepath = "processed.tsv"
     if sys.argv.__len__() > 2:
-        output_filepath=sys.argv[2]    
-    
+        output_filepath = sys.argv[2]
+
     JParaCrawl_Preprocess(input_filepath, output_filepath)
