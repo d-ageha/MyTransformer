@@ -111,6 +111,11 @@ def train(
         pin_memory=True,
     )
     val_dataloader = DataLoader(val_dataset, 1, False)
+    print(
+        "train_size:{} test_size{}".format(
+            train_dataloader.__len__(), val_dataloader.__len__()
+        )
+    )
 
     en_pad_id = train_dataset.en_tokenizer.pad_token_id or 0
     ja_pad_id = train_dataset.ja_tokenizer.pad_token_id or 0
@@ -149,16 +154,13 @@ def train(
             en, ja = data["en"], data["ja"]
             en_tokens = torch.stack(en["input_ids"]).transpose(0, 1).to(device)
             ja_tokens = torch.stack(ja["input_ids"]).transpose(0, 1).to(device)
-            for i in range(batch):
-                # show every tokens!
-                print(train_dataset.ja_tokenizer.decode(ja_tokens[i]))
 
             en_masks, ja_masks = torch.stack(en["attention_mask"]).transpose(0, 1).to(
                 device
             ), torch.stack(ja["attention_mask"]).transpose(0, 1).to(device)
 
             if en_tokens.dim() == 1:
-                # it batch size=1, unsqueeze the tokens
+                # if batch size=1, unsqueeze the tokens
                 en_tokens, ja_tokens = en_tokens.unsqueeze(0), ja_tokens.unsqueeze(0)
                 en_masks, ja_masks = en_masks.unsqueeze(0), ja_masks.unsqueeze(0)
 
@@ -219,5 +221,5 @@ if __name__ == "__main__":
     else:
         print(
             sys.argv[0]
-            + " train_dataset_path test_dataset_path use_mine model_save_dir model_save_name model_load_filepath previous_steps"
+            + " train_dataset_path test_dataset_path dim epoch batch warmup use_mine model_save_dir model_save_name model_load_filepath previous_steps"
         )
