@@ -105,15 +105,14 @@ def train(
             loss.backward()
             optim.step()
             model.train(False)
-            with torch.no_grad():
-                t.set_postfix_str("Epoch: {} loss={} lr={}".format(e, loss, lr))
+            t.set_postfix_str("Epoch: {} loss={} lr={}".format(e, loss, lr))
             if step == 0 or step % 100 != 0:
                 continue
 
             with torch.no_grad():
                 val_loss = 0.0
                 for i, data in enumerate(val_dataloader):
-                    en_tokens, ja_tokens, en_masks, ja_masks = prepare_data(data, device, 1)
+                    en_tokens, ja_tokens, en_masks, ja_masks = prepare_data(data, device, batch)
                     out = model.forward(en_tokens, ja_tokens, en_masks, ja_tokens)
                     val_loss += loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
                     if i < 10:
@@ -122,8 +121,13 @@ def train(
                         print(dataset.en_tokenizer.decode(en_tokens[0], skip_special_tokens=True))
                         print(dataset.ja_tokenizer.decode(out_tokens[0], skip_special_tokens=True))
                         print(dataset.ja_tokenizer.decode(ja_tokens[0], skip_special_tokens=True))
-
-                if val_loss < previous_val_loss:
+                print(val_loss.__float__())
+                if val_loss.__float__() < previous_val_loss:
+                    print(
+                        "The loss is smaller than before"
+                        + "(val_loss:{}  previous:{}).".format(val_loss, previous_val_loss)
+                        + " Saving the model."
+                    )
                     torch.save(model.state_dict(), model_save_dir + model_save_name)
                     log = open(model_save_dir + "last_saved_step.txt", "w")
                     log.write(str(step))

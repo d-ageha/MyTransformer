@@ -30,24 +30,40 @@ JParaCrawl claims to work in the exact same way as ParaCrawl does, but the paper
 def JParaCrawl_Preprocess(filename: str, output: str, *prcs: Callable[[list[str]], list[str]]):
     in_file = open(filename, "r")
     out_file = open(output, "w")
+    count = 0
     while True:
+        count += 1
         line = in_file.readline()
         split_line = line.split("\t")
         if not line:
             break
         for process in prcs:
             split_line = process(split_line)
+            if not split_line:
+                break
 
-        if len(split_line) != 2:
+        if len(split_line) != 5:
             continue
-        concated_line = "{}\t{}".format(split_line[0], split_line[1])
-        if len(split_line[0]) != 0 and len(split_line[1]) != 0:
-            out_file.write(line)
+
+        concated_line = "{}\t{}".format(split_line[3], split_line[4])
+        out_file.write(concated_line)
 
 
 def FilterLowScores(split_line: list[str]):
-    if float(split_line[2]) < 0.6:
+    if float(split_line[2]) < 0.65:
         split_line = []
+    return split_line
+
+
+def EscapeDoubleQuote(split_line: list[str]):
+    split_line[3] = split_line[3].replace('"', '\\"')
+    split_line[4] = split_line[4].replace('"', '\\"')
+    return split_line
+
+
+def RemoveTabs(split_line: list[str]):
+    split_line[3] = split_line[3].replace("\t", " ")
+    split_line[4] = split_line[4].replace("\t", " ")
     return split_line
 
 
@@ -60,4 +76,4 @@ if __name__ == "__main__":
     if sys.argv.__len__() > 2:
         output_filepath = sys.argv[2]
 
-    JParaCrawl_Preprocess(input_filepath, output_filepath)
+    JParaCrawl_Preprocess(input_filepath, output_filepath, FilterLowScores, RemoveTabs, EscapeDoubleQuote)
