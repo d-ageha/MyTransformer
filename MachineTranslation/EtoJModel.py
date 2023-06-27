@@ -55,13 +55,9 @@ class EtoJModel(torch.nn.Module):
     def translate(self, x, sos_id, eos_id, ja_pad_id, pad_mask):
         result = torch.tensor([sos_id]).unsqueeze(0)
         for i in range(self.max_seq_len - 1):
-            y_pads = torch.tensor(
-                [[ja_pad_id for j in range(self.max_seq_len - (i + 1))]]
-            )
+            y_pads = torch.tensor([[ja_pad_id for j in range(self.max_seq_len - (i + 1))]])
             y = torch.cat((result, y_pads), dim=1)
-            y_pad_mask = [1 for j in range(i + 1)] + [
-                0 for j in range(self.max_seq_len - (i + 1))
-            ]
+            y_pad_mask = [1 for j in range(i + 1)] + [0 for j in range(self.max_seq_len - (i + 1))]
             y_pad_mask = torch.tensor(y_pad_mask, dtype=torch.int64).unsqueeze(0)
             if not self.use_mine:
                 pad_mask = pad_mask == 0
@@ -72,4 +68,3 @@ class EtoJModel(torch.nn.Module):
             if result[0, -1] == eos_id:
                 break
         return result
-

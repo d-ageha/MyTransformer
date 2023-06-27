@@ -2,25 +2,26 @@ from typing import Callable
 import sys
 import re
 
-'''
+"""
 Preprocess methods I used to process JESC dataset.
 The dataset contained too many weird lines so I had to removed them.
-'''
+"""
+
 
 def removeDecorativeCharacters(line: str):
-    '''
+    """
     Delete decorative characters which are not essential for translation.
-    '''
-    chars_to_remove = ["\"", "", "<", ">", "(", ")", "[", "]", "。", "「", "」", "《", "》", "➡", "♪", "☎"]
+    """
+    chars_to_remove = ['"', "", "<", ">", "(", ")", "[", "]", "。", "「", "」", "《", "》", "➡", "♪", "☎"]
     for ch in chars_to_remove:
         line = line.replace(ch, "")
     return line
 
 
 def removeChineseLines(line: str):
-    '''
+    """
     Delete Chinese. I think JESC dataset is not reviewed by native Japanese speaker.
-    '''
+    """
     chars_likely_to_be_chinese = ["那", "你", "请", "节", "违", "这"]
     if line.startswith("我"):
         return ""
@@ -31,12 +32,12 @@ def removeChineseLines(line: str):
 
 
 def removeSpeakerName(line: str):
-    '''
+    """
     Delete speaker's name in Japanese sentence.
 
     ex. "(オリヴィエ)" in this sentence:
     (オリヴィエ)うん。 おっ。 パンデピス?
-    '''
+    """
     line = re.sub("[\(\[].*?[\)\]]", "", line)
     return line
 
@@ -67,6 +68,7 @@ if __name__ == "__main__":
     if not sys.argv[1].endswith("/"):
         sys.argv[1] += "/"
     dirname = sys.argv[1]
-    Preprocess(dirname + "train", dirname + "train_p", removeSpeakerName,
-               removeDecorativeCharacters, removeChineseLines)
+    Preprocess(
+        dirname + "train", dirname + "train_p", removeSpeakerName, removeDecorativeCharacters, removeChineseLines
+    )
     Preprocess(dirname + "dev", dirname + "dev_p", removeSpeakerName, removeDecorativeCharacters, removeChineseLines)

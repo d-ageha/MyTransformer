@@ -27,9 +27,7 @@ JParaCrawl claims to work in the exact same way as ParaCrawl does, but the paper
 """
 
 
-def JParaCrawl_Preprocess(
-    filename: str, output: str, *prcs: Callable[[list[str]], list[str]]
-):
+def JParaCrawl_Preprocess(filename: str, output: str, *prcs: Callable[[list[str]], list[str]]):
     in_file = open(filename, "r")
     out_file = open(output, "w")
     while True:
