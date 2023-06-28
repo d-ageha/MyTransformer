@@ -15,6 +15,10 @@ class TSV_DataSet(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx: int):
-        en = self.en_tokenizer(self.data.iloc[idx][0], padding="max_length", max_length=self.max_length)
-        ja = self.ja_tokenizer(self.data.iloc[idx][1], padding="max_length", max_length=self.max_length)
+        en = self.en_tokenizer(
+            self.data.iloc[idx][0], padding="max_length", max_length=self.max_length, truncation=True
+        )
+        ja = self.ja_tokenizer(
+            self.data.iloc[idx][1], padding="max_length", max_length=self.max_length, truncation=True
+        )
         return {"en": en, "ja": ja}

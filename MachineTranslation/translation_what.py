@@ -27,19 +27,17 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(filename))
     while True:
         en = input()
+        ja = input()
         en = en_tokenizer([en], padding="max_length", max_length=130)
         en_tokens_list = en["input_ids"]
         en_tokens = torch.tensor(en["input_ids"])
         en_pad_mask = torch.tensor(en["attention_mask"])
 
-        print(en_tokens)
-        res = model.translate(
-            en_tokens,
-            ja_tokenizer.cls_token_id,
-            ja_tokenizer.sep_token_id,
-            ja_pad_id,
-            en_pad_mask,
-        )
-        print(res)
-        print(en_tokenizer.decode(en_tokens[0]))
-        print(ja_tokenizer.decode(res[0]))
+        ja = ja_tokenizer([ja], padding="max_length", max_length=130)
+        ja_tokens_list = ja["input_ids"]
+        ja_tokens = torch.tensor(ja["input_ids"])
+        ja_pad_mask = torch.tensor(ja["attention_mask"])
+
+        res = model.forward(en_tokens, ja_tokens, en_pad_mask, ja_pad_mask)
+        out = model.ja_decode(res)
+        print(ja_tokenizer.decode(out[0]))

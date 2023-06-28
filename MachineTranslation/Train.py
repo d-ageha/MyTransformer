@@ -80,7 +80,7 @@ def train(
     model.to(device)
 
     optim = torch.optim.Adam(model.parameters(), lr=1, betas=(0.9, 0.98))
-    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=ja_pad_id, label_smoothing=0.1, reduction="sum")
+    loss_fn = torch.nn.CrossEntropyLoss(ignore_index=ja_pad_id, label_smoothing=0.1)
     step = 0
     previous_val_loss = float("inf")
     for e in range(epoch):
@@ -121,18 +121,14 @@ def train(
                         print(dataset.en_tokenizer.decode(en_tokens[0], skip_special_tokens=True))
                         print(dataset.ja_tokenizer.decode(out_tokens[0], skip_special_tokens=True))
                         print(dataset.ja_tokenizer.decode(ja_tokens[0], skip_special_tokens=True))
-                print(val_loss.__float__())
+                print("(val_loss:{}  previous best:{}).".format(val_loss, previous_val_loss))
                 if val_loss.__float__() < previous_val_loss:
-                    print(
-                        "The loss is smaller than before"
-                        + "(val_loss:{}  previous:{}).".format(val_loss, previous_val_loss)
-                        + " Saving the model."
-                    )
+                    print("The loss is smaller than before. Saving the model.")
                     torch.save(model.state_dict(), model_save_dir + model_save_name)
                     log = open(model_save_dir + "last_saved_step.txt", "w")
                     log.write(str(step))
                     log.close()
-                previous_val_loss = val_loss
+                    previous_val_loss = val_loss
     return model
 
 
