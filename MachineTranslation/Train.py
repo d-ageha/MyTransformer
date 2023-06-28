@@ -113,7 +113,7 @@ def train(
                     out = model.forward(en_tokens, ja_tokens, en_masks, ja_tokens)
                     val_loss += loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
                     if i < 10:
-                        pos = randint(0, batch - 1)
+                        pos = randint(0, out.shape[0] - 1)
                         out_tokens = model.ja_decode(out).to(device)
                         out_tokens = out_tokens.masked_fill(ja_masks == 0, ja_pad_id)
                         print(dataset.en_tokenizer.decode(en_tokens[pos], skip_special_tokens=True))
