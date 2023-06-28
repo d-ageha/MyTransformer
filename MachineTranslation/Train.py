@@ -2,6 +2,7 @@ from torch.utils.data.dataloader import DataLoader
 import torch
 import torch.utils.data
 import torch.nn.functional as F
+from random import randint
 from tqdm import tqdm
 import sys
 import os
@@ -22,10 +23,6 @@ def prepare_data(data, device, batch):
     en_masks, ja_masks = torch.stack(en["attention_mask"]).transpose(0, 1).to(device), torch.stack(
         ja["attention_mask"]
     ).transpose(0, 1).to(device)
-    if batch == 1:
-        # if batch size=1, unsqueeze the tokens
-        en_tokens, ja_tokens = en_tokens.unsqueeze(0), ja_tokens.unsqueeze(0)
-        en_masks, ja_masks = en_masks.unsqueeze(0), ja_masks.unsqueeze(0)
 
     return en_tokens, ja_tokens, en_masks, ja_masks
 
@@ -116,11 +113,12 @@ def train(
                     out = model.forward(en_tokens, ja_tokens, en_masks, ja_tokens)
                     val_loss += loss_fn(out.transpose(1, 2)[:, :, :-1], ja_tokens[:, 1:])
                     if i < 10:
+                        pos = randint(0, batch - 1)
                         out_tokens = model.ja_decode(out).to(device)
                         out_tokens = out_tokens.masked_fill(ja_masks == 0, ja_pad_id)
-                        print(dataset.en_tokenizer.decode(en_tokens[0], skip_special_tokens=True))
-                        print(dataset.ja_tokenizer.decode(out_tokens[0], skip_special_tokens=True))
-                        print(dataset.ja_tokenizer.decode(ja_tokens[0], skip_special_tokens=True))
+                        print(dataset.en_tokenizer.decode(en_tokens[pos], skip_special_tokens=True))
+                        print(dataset.ja_tokenizer.decode(out_tokens[pos], skip_special_tokens=True))
+                        print(dataset.ja_tokenizer.decode(ja_tokens[pos], skip_special_tokens=True))
                 print("(val_loss:{}  previous best:{}).".format(val_loss, previous_val_loss))
                 if val_loss.__float__() < previous_val_loss:
                     print("The loss is smaller than before. Saving the model.")

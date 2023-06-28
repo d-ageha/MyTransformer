@@ -20,8 +20,10 @@ class EtoJModel(torch.nn.Module):
         super().__init__()
         self.use_mine = use_mine
         if use_mine:
+            print("Transformer Implementation: my model")
             self.transformer = Transformer(6, 6, 8, model_dim, max_seq_len, 0.1)
         else:
+            print("Transformer Implementation: not mine")
             self.transformer = torch.nn.Transformer(model_dim, 8, batch_first=True)
         self.en_emb = torch.nn.Embedding(en_embs, model_dim, padding_idx=en_pad_idx)
         self.ja_emb = torch.nn.Embedding(ja_embs, model_dim, padding_idx=ja_pad_idx)

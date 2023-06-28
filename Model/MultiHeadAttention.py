@@ -24,8 +24,9 @@ class Attention(nn.Module):
 class MultiheadAttention(nn.Module):
     """Multihead Attention layer"""
 
-    def __init__(self, head_num: int, q_length: int, k_length: int, q_dim: int, k_dim: int, v_dim: int,
-                 is_masked: bool = False) -> None:
+    def __init__(
+        self, head_num: int, q_length: int, k_length: int, q_dim: int, k_dim: int, v_dim: int, is_masked: bool = False
+    ) -> None:
         super().__init__()
         self.qh_dim = q_dim // head_num
         self.kh_dim = k_dim // head_num
@@ -46,18 +47,21 @@ class MultiheadAttention(nn.Module):
             mask = torch.ones(q_length, k_length)
             mask = torch.tril(mask)
             self.register_buffer("mask", mask)
+            print(mask, mask.shape)
         else:
             self.mask = None
 
-    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, pad_mask: Optional[torch.Tensor] = None):
-        """ forward
-            query: b x i x q tensor
-            key: b x j x k tensor
-            value: b x j x v tensor
-            pad_mask: b x i
+    def forward(
+        self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, pad_mask: Optional[torch.Tensor] = None
+    ):
+        """forward
+        query: b x i x q tensor
+        key: b x j x k tensor
+        value: b x j x v tensor
+        pad_mask: b x i
 
-            i = length of query sequence
-            j = length of key/value sequence
+        i = length of query sequence
+        j = length of key/value sequence
         """
         """
             s: q/head_num
