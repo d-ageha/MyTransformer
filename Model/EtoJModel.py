@@ -19,6 +19,7 @@ class EtoJModel(torch.nn.Module):
     ) -> None:
         super().__init__()
         self.use_mine = use_mine
+        print(use_mine)
         if use_mine:
             print("Transformer Implementation: my model")
             self.transformer = Transformer(6, 6, 8, model_dim, max_seq_len, 0.1)
@@ -54,7 +55,7 @@ class EtoJModel(torch.nn.Module):
     def ja_decode(self, y):
         return torch.argmax(y, 2)
 
-    def translate(self, x, sos_id, eos_id, ja_pad_id, pad_mask):
+    def translate(self, x, sos_id, eos_id, ja_pad_id, pad_mask, device):
         result = torch.tensor([sos_id]).unsqueeze(0)
         for i in range(self.max_seq_len - 1):
             y_pads = torch.tensor([[ja_pad_id for j in range(self.max_seq_len - (i + 1))]])
@@ -64,6 +65,9 @@ class EtoJModel(torch.nn.Module):
             if not self.use_mine:
                 pad_mask = pad_mask == 0
                 y_pad_mask = y_pad_mask == 0
+
+            y = y.to(device)
+            y_pad_mask = y_pad_mask.to(device)
             y = self.forward(x, y, pad_mask, y_pad_mask)
             next_token = torch.tensor([[self.ja_decode(y)[0, i]]])
             result = torch.cat((result, next_token), dim=1)

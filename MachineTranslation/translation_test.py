@@ -9,7 +9,7 @@ if __name__ == "__main__":
         exit()
     dim = int(sys.argv[1])
     filename = sys.argv[2]
-    use_mine = bool(sys.argv[3])
+    use_mine = sys.argv[3] == "True"
     en_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     ja_tokenizer = AutoTokenizer.from_pretrained("cl-tohoku/bert-base-japanese")
     en_pad_id = en_tokenizer.pad_token_id or 0

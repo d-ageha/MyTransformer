@@ -6,14 +6,14 @@ from MultiHeadAttention import MultiheadAttention
 
 
 class Transformer(nn.Module):
-
-    def __init__(self, dec_num: int, enc_num: int,
-                 head_num: int, model_dim: int, max_seq_len: int, drop_rate: float) -> None:
+    def __init__(
+        self, dec_num: int, enc_num: int, head_num: int, model_dim: int, max_seq_len: int, drop_rate: float
+    ) -> None:
         super().__init__()
-        self.decoders = [DecoderLayer(head_num, max_seq_len, max_seq_len, model_dim, drop_rate)
-                         for x in range(dec_num)]
-        self.encoders = [EncoderLayer(head_num, max_seq_len, model_dim, drop_rate)
-                         for x in range(enc_num)]
+        self.decoders = [
+            DecoderLayer(head_num, max_seq_len, max_seq_len, model_dim, drop_rate) for x in range(dec_num)
+        ]
+        self.encoders = [EncoderLayer(head_num, max_seq_len, model_dim, drop_rate) for x in range(enc_num)]
         self.linear = torch.nn.Linear(model_dim, model_dim)
 
         for i, decoder in enumerate(self.decoders):
@@ -21,11 +21,23 @@ class Transformer(nn.Module):
         for i, encoder in enumerate(self.encoders):
             self.register_module("encoder" + str(i), encoder)
 
-        pos_enc = [[sin(x / pow(10000, y / model_dim)) if y % 2 == 0 else cos(x / pow(10000, (y - 1) / model_dim))
-                    for y in range(model_dim)] for x in range(max_seq_len)]
+        pos_enc = [
+            [
+                sin(x / pow(10000, y / model_dim)) if y % 2 == 0 else cos(x / pow(10000, (y - 1) / model_dim))
+                for y in range(model_dim)
+            ]
+            for x in range(max_seq_len)
+        ]
         self.register_buffer("pos_enc", torch.tensor(pos_enc))
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor, x_pad_mask: Optional[torch.Tensor] = None, y_pad_mask: Optional[torch.Tensor] = None):
+    def forward(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        x_pad_mask: Optional[torch.Tensor] = None,
+        y_pad_mask: Optional[torch.Tensor] = None,
+    ):
+        print("This is me speaking, you know. If I am not supposed be here, you made a mistake.")
         enc = x + self.pos_enc
         for encoder in self.encoders:
             enc = encoder.forward(enc, x_pad_mask)
@@ -38,8 +50,8 @@ class Transformer(nn.Module):
 class FeedForward(nn.Module):
     """Feed Forward Layer
 
-        One layer of fully connected neural network with relu activation,
-        followed by the same network structure without activation.
+    One layer of fully connected neural network with relu activation,
+    followed by the same network structure without activation.
     """
 
     def __init__(self, in_dim: int, mid_dim: int, out_dim: int) -> None:
@@ -52,13 +64,12 @@ class FeedForward(nn.Module):
 
 
 class EncoderLayer(nn.Module):
-    """ A single layer of Transformer's encoder part. """
+    """A single layer of Transformer's encoder part."""
 
     def __init__(self, h_num: int, max_in_length: int, model_dim: int, drop_rate: float) -> None:
         super().__init__()
         self.ff_layer = FeedForward(model_dim, model_dim * 4, model_dim)
-        self.att_layer = MultiheadAttention(
-            h_num, max_in_length, max_in_length, model_dim, model_dim, model_dim)
+        self.att_layer = MultiheadAttention(h_num, max_in_length, max_in_length, model_dim, model_dim, model_dim)
         self.dropout1 = nn.Dropout(drop_rate)
         self.dropout2 = nn.Dropout(drop_rate)
         self.lnorm1 = nn.LayerNorm(model_dim)
@@ -74,15 +85,15 @@ class EncoderLayer(nn.Module):
 
 
 class DecoderLayer(nn.Module):
-    """ A single layer of Transformer's decoder part. """
+    """A single layer of Transformer's decoder part."""
 
     def __init__(self, h_num: int, max_in_length: int, max_out_length: int, model_dim: int, drop_rate: float) -> None:
         super().__init__()
         self.ff_layer = FeedForward(model_dim, model_dim * 4, model_dim)
         self.maksed_att_layer = MultiheadAttention(
-            h_num, max_in_length, max_in_length, model_dim, model_dim, model_dim, True)
-        self.att_layer = MultiheadAttention(
-            h_num, max_in_length, max_out_length, model_dim, model_dim, model_dim)
+            h_num, max_in_length, max_in_length, model_dim, model_dim, model_dim, True
+        )
+        self.att_layer = MultiheadAttention(h_num, max_in_length, max_out_length, model_dim, model_dim, model_dim)
         self.dropout1 = nn.Dropout(drop_rate)
         self.dropout2 = nn.Dropout(drop_rate)
         self.dropout3 = nn.Dropout(drop_rate)
