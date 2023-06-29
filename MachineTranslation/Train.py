@@ -121,26 +121,25 @@ def train(
                         print(dataset.ja_tokenizer.decode(out_tokens[0], skip_special_tokens=True))
                         print(dataset.ja_tokenizer.decode(ja_tokens[0], skip_special_tokens=True))
 
-                        ex_sentence = "If you don't like bread, especially baguette, don't talk to me."
-                        en = dataset.en_tokenizer([ex_sentence], padding="max_length", max_length=130)
-                        en_tokens = torch.tensor(en["input_ids"]).to(device)
-                        en_pad_mask = torch.tensor(en["attention_mask"]).to(device)
+                ex_sentence = "If you don't like bread, especially baguette, don't talk to me."
+                en = dataset.en_tokenizer([ex_sentence], padding="max_length", max_length=130)
+                en_tokens = torch.tensor(en["input_ids"]).to(device)
+                en_pad_mask = torch.tensor(en["attention_mask"]).to(device)
 
-                        print("sample translation:{}".format(ex_sentence))
-                        print(
-                            dataset.ja_tokenizer.decode(
-                                model.translate(
-                                    en_tokens,
-                                    dataset.ja_tokenizer.cls_token_id,
-                                    dataset.ja_tokenizer.sep_token_id,
-                                    ja_pad_id,
-                                    en_pad_mask,
-                                    device,
-                                )[0],
-                                skip_special_tokens=True,
-                            )
-                        )
-
+                print("sample translation:{}".format(ex_sentence))
+                print(
+                    dataset.ja_tokenizer.decode(
+                        model.translate(
+                            en_tokens,
+                            dataset.ja_tokenizer.cls_token_id,
+                            dataset.ja_tokenizer.sep_token_id,
+                            ja_pad_id,
+                            en_pad_mask,
+                            device,
+                        )[0],
+                        skip_special_tokens=True,
+                    )
+                )
                 print("(val_loss:{}  previous best:{}).".format(val_loss, previous_val_loss))
                 if val_loss.__float__() < previous_val_loss:
                     print("The loss is smaller than before. Saving the model.")

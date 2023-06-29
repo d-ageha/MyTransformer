@@ -39,6 +39,7 @@ if __name__ == "__main__":
             ja_tokenizer.sep_token_id,
             ja_pad_id,
             en_pad_mask,
+            device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
         )
         print(res)
         print(en_tokenizer.decode(en_tokens[0]))
