@@ -15,6 +15,8 @@ if __name__ == "__main__":
     en_pad_id = en_tokenizer.pad_token_id or 0
     ja_pad_id = ja_tokenizer.pad_token_id or 0
 
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     model = EtoJModel(
         dim,
         en_pad_id,
@@ -25,6 +27,7 @@ if __name__ == "__main__":
         use_mine=use_mine,
     )
     model.load_state_dict(torch.load(filename))
+    model = model.to(device)
     while True:
         en = input()
         en = en_tokenizer([en], padding="max_length", max_length=130)
@@ -32,14 +35,8 @@ if __name__ == "__main__":
         en_tokens = torch.tensor(en["input_ids"])
         en_pad_mask = torch.tensor(en["attention_mask"])
 
-        print(en_tokens)
         res = model.translate(
-            en_tokens,
-            ja_tokenizer.cls_token_id,
-            ja_tokenizer.sep_token_id,
-            ja_pad_id,
-            en_pad_mask,
-            device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu"),
+            en_tokens, ja_tokenizer.cls_token_id, ja_tokenizer.sep_token_id, ja_pad_id, en_pad_mask, device=device
         )
         print(res)
         print(en_tokenizer.decode(en_tokens[0]))

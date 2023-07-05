@@ -47,9 +47,12 @@ def train(
     print(device)
     max_length = 130
 
+    print("dim:{} epoch:{} batch:{} warmup:{}".format(dim, epoch, batch, warmup))
+
     dataset = TSV_DataSet(dataset_filepath, max_length)
+    test_size = min(max(len(dataset) * 0.01, 1), 100)
     train_dataset, val_dataset = torch.utils.data.random_split(
-        dataset, [dataset.__len__() - 100, 100], generator=torch.Generator().manual_seed(1023)
+        dataset, [len(dataset) - test_size, test_size], generator=torch.Generator().manual_seed(1023)
     )
 
     train_dataloader = DataLoader(
@@ -108,7 +111,7 @@ def train(
 
             with torch.no_grad():
                 val_loss = 0.0
-                preview = sample(range(len(val_dataloader)), 10)
+                preview = sample(range(len(val_dataloader)), min(len(val_dataloader), 10))
                 for i, data in enumerate(val_dataloader):
                     en_tokens, ja_tokens, en_masks, ja_masks = prepare_data(data, device, batch)
                     out = model.forward(en_tokens, ja_tokens, en_masks, ja_tokens)

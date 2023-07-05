@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 class TSV_DataSet(Dataset):
     def __init__(self, csv: str, max_length: int):
-        self.data = pd.read_csv(csv, sep="\t", on_bad_lines="warn", engine="python")
+        self.data = pd.read_csv(csv, header=None, sep="\t", on_bad_lines="warn", engine="python")
         self.max_length = max_length
         self.en_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
         self.ja_tokenizer = AutoTokenizer.from_pretrained("cl-tohoku/bert-base-japanese")
